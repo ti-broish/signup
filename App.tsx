@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import WidgetPortal from './components/WidgetPortal';
-import AnalyticsWidget from './components/widgets/AnalyticsWidget';
 import SignUpWidget from './components/widgets/SignUpWidget';
 import { WidgetType } from './types';
 
@@ -41,8 +40,6 @@ const App: React.FC = () => {
         <div className="w-full h-screen overflow-hidden">
           {(() => {
             switch (widgetId) {
-              case WidgetType.ANALYTICS:
-                return <AnalyticsWidget />;
               case WidgetType.SIGNUP:
                 return <SignUpWidget privacyUrl={privacyUrl} />;
               default:

@@ -1,6 +1,5 @@
 
 export enum WidgetType {
-  ANALYTICS = 'analytics',
   SIGNUP = 'signup',
 }
 
