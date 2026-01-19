@@ -72,7 +72,11 @@ interface TouchedFields {
     [key: string]: boolean;
 }
 
-const SignUpWidget: React.FC = () => {
+interface SignUpWidgetProps {
+    privacyUrl?: string;
+}
+
+const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) => {
     const ABROAD_ID = '32'; // ID за "Извън страната"
     const BULGARIA_ID = '000'; // ID за "България"
     const TURNSTILE_SITE_KEY = process.env.VITE_TURNSTILE_SITE_KEY || 'TURNSTILE_SITE_KEY';
@@ -841,7 +845,7 @@ const SignUpWidget: React.FC = () => {
                                 onBlur={() => handleBlur('gdprConsent')}
                             />
                             <span>
-                                Съгласен/на съм с <a href="/privacy" target="_blank">условията за съхраняване на лични данни</a> <span className="required">*</span>
+                                Съгласен/на съм с <a href={privacyUrl} target="_blank">условията за съхраняване на лични данни</a> <span className="required">*</span>
                             </span>
                         </label>
                         {errors.gdprConsent && touched.gdprConsent && (

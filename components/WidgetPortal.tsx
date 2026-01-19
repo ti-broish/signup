@@ -4,12 +4,23 @@ import { WIDGETS } from '../constants';
 import { WidgetMetadata } from '../types';
 
 const WidgetPortal: React.FC = () => {
-  const [selectedWidget, setSelectedWidget] = useState<WidgetMetadata | null>(null);
+  // Set SignUpWidget as the default selected widget
+  const defaultWidget = WIDGETS.find(w => w.id === 'signup') || WIDGETS[0];
+  const [selectedWidget, setSelectedWidget] = useState<WidgetMetadata | null>(defaultWidget);
+  const [privacyUrl, setPrivacyUrl] = useState<string>('');
+  const [baseUrl, setBaseUrl] = useState<string>('');
 
-  const getWidgetUrl = (id: string) => {
-    // Generates the hash-based URL that points to the specific component
-    const baseUrl = window.location.href.split('#')[0];
-    return `${baseUrl}#/widget/${id}`;
+  const getWidgetUrl = (id: string, includeParams: boolean = false) => {
+    // Use custom base URL if provided, otherwise use current location
+    const urlBase = baseUrl || window.location.href.split('#')[0];
+    let url = `${urlBase}#/widget/${id}`;
+
+    // Add query parameters for SignUpWidget
+    if (includeParams && id === 'signup' && privacyUrl) {
+      url += `?privacyUrl=${encodeURIComponent(privacyUrl)}`;
+    }
+
+    return url;
   };
 
   const copyToClipboard = (text: string) => {
@@ -68,7 +79,7 @@ const WidgetPortal: React.FC = () => {
                   }}
                 >
                   <iframe
-                    src={getWidgetUrl(selectedWidget.id)}
+                    src={getWidgetUrl(selectedWidget.id, true)}
                     className="w-full h-full border-none"
                     title={selectedWidget.name}
                   />
@@ -77,16 +88,61 @@ const WidgetPortal: React.FC = () => {
 
               {/* Implementation */}
               <div className="space-y-6">
+                {/* General Configuration */}
+                <section className="bg-white p-6 rounded-xl border border-gray-200">
+                  <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                    <i className="fas fa-cog text-indigo-500"></i> Configuration
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                        Base URL <span className="text-gray-400">(optional)</span>
+                      </label>
+                      <input
+                        type="url"
+                        id="baseUrl"
+                        value={baseUrl}
+                        onChange={(e) => setBaseUrl(e.target.value)}
+                        placeholder={window.location.href.split('#')[0]}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      />
+                      <p className="mt-2 text-xs text-gray-500">
+                        The base URL where your widget is hosted. Leave empty to use the current location.
+                      </p>
+                    </div>
+
+                    {/* Widget-specific Configuration for SignUpWidget */}
+                    {selectedWidget.id === 'signup' && (
+                      <div>
+                        <label htmlFor="privacyUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                          Privacy Policy URL <span className="text-gray-400">(optional)</span>
+                        </label>
+                        <input
+                          type="url"
+                          id="privacyUrl"
+                          value={privacyUrl}
+                          onChange={(e) => setPrivacyUrl(e.target.value)}
+                          placeholder="https://example.com/privacy-policy"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        />
+                        <p className="mt-2 text-xs text-gray-500">
+                          The URL that will be linked in the GDPR consent checkbox. Leave empty to use the default "/privacy" path.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
                 <section>
                   <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
                     <i className="fas fa-code text-green-500"></i> Embed Code
                   </h3>
                   <div className="bg-gray-900 rounded-lg p-4 relative group">
                     <pre className="text-green-400 text-sm overflow-x-auto">
-                      {`<iframe\n  src="${getWidgetUrl(selectedWidget.id)}"\n  width="${selectedWidget.defaultWidth}"\n  height="${selectedWidget.defaultHeight}"\n  style="border:none; border-radius:12px; overflow:hidden;"\n></iframe>`}
+                      {`<iframe\n  src="${getWidgetUrl(selectedWidget.id, true)}"\n  width="${selectedWidget.defaultWidth}"\n  height="${selectedWidget.defaultHeight}"\n  style="border:none; border-radius:12px; overflow:hidden;"\n></iframe>`}
                     </pre>
                     <button
-                      onClick={() => copyToClipboard(`<iframe src="${getWidgetUrl(selectedWidget.id)}" width="${selectedWidget.defaultWidth}" height="${selectedWidget.defaultHeight}" style="border:none; border-radius:12px; overflow:hidden;"></iframe>`)}
+                      onClick={() => copyToClipboard(`<iframe src="${getWidgetUrl(selectedWidget.id, true)}" width="${selectedWidget.defaultWidth}" height="${selectedWidget.defaultHeight}" style="border:none; border-radius:12px; overflow:hidden;"></iframe>`)}
                       className="absolute top-4 right-4 bg-gray-700 text-white p-2 rounded hover:bg-gray-600 transition"
                     >
                       <i className="fas fa-copy"></i>
@@ -97,9 +153,15 @@ const WidgetPortal: React.FC = () => {
                 <section className="bg-white p-6 rounded-xl border border-gray-200">
                   <h3 className="text-sm font-bold text-gray-400 uppercase mb-4">Configuration Details</h3>
                   <div className="space-y-3">
+                    {baseUrl && (
+                      <div className="flex justify-between text-sm pb-2 border-b border-gray-200">
+                        <span className="text-gray-500">Base URL:</span>
+                        <span className="font-mono text-gray-700 text-xs break-all">{baseUrl}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Iframe Target:</span>
-                      <code className="bg-gray-100 px-2 py-0.5 rounded text-indigo-600">{getWidgetUrl(selectedWidget.id)}</code>
+                      <code className="bg-gray-100 px-2 py-0.5 rounded text-indigo-600 text-xs break-all">{getWidgetUrl(selectedWidget.id, true)}</code>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Suggested Width:</span>
@@ -109,6 +171,12 @@ const WidgetPortal: React.FC = () => {
                       <span className="text-gray-500">Suggested Height:</span>
                       <span className="font-mono text-gray-700">{selectedWidget.defaultHeight}</span>
                     </div>
+                    {selectedWidget.id === 'signup' && privacyUrl && (
+                      <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                        <span className="text-gray-500">Privacy URL:</span>
+                        <span className="font-mono text-gray-700 text-xs break-all">{privacyUrl}</span>
+                      </div>
+                    )}
                   </div>
                 </section>
               </div>

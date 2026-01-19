@@ -31,6 +31,10 @@ const App: React.FC = () => {
     if (widgetMatch) {
       const widgetId = widgetMatch[1];
 
+      // Parse URL parameters for widget configuration
+      const urlParams = new URLSearchParams(window.location.search);
+      const privacyUrl = urlParams.get('privacyUrl') || undefined;
+
       // Standalone widget rendering for iframes
       // This view has no padding, no shell, only the component.
       return (
@@ -40,7 +44,7 @@ const App: React.FC = () => {
               case WidgetType.ANALYTICS:
                 return <AnalyticsWidget />;
               case WidgetType.SIGNUP:
-                return <SignUpWidget />;
+                return <SignUpWidget privacyUrl={privacyUrl} />;
               default:
                 return (
                   <div className="flex items-center justify-center h-full text-gray-400 bg-gray-50 italic">
