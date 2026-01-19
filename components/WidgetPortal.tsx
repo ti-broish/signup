@@ -1,31 +1,37 @@
-
-import React, { useState } from 'react';
-import { WIDGETS } from '../constants';
-import { WidgetMetadata } from '../types';
+import React, { useState } from "react";
+import { WIDGETS } from "../constants";
+import { WidgetMetadata } from "../types";
 
 const WidgetPortal: React.FC = () => {
   // Set SignUpWidget as the default selected widget
-  const defaultWidget = WIDGETS.find(w => w.id === 'signup') || WIDGETS[0];
-  const [selectedWidget, setSelectedWidget] = useState<WidgetMetadata | null>(defaultWidget);
-  const [privacyUrl, setPrivacyUrl] = useState<string>('');
-  const [baseUrl, setBaseUrl] = useState<string>('');
+  const defaultWidget = WIDGETS.find((w) => w.id === "signup") || WIDGETS[0];
+  const [selectedWidget, setSelectedWidget] = useState<WidgetMetadata | null>(
+    defaultWidget,
+  );
+  const [privacyUrl, setPrivacyUrl] = useState<string>("");
+  const [baseUrl, setBaseUrl] = useState<string>("");
 
   const getWidgetUrl = (id: string, includeParams: boolean = false) => {
     // Use custom base URL if provided, otherwise use current location
-    const urlBase = baseUrl || window.location.href.split('#')[0];
+    const urlBase = baseUrl || window.location.href.split("#")[0];
     let url = `${urlBase}#/widget/${id}`;
 
     // Add query parameters for SignUpWidget
-    if (includeParams && id === 'signup' && privacyUrl) {
+    if (includeParams && id === "signup" && privacyUrl) {
       url += `?privacyUrl=${encodeURIComponent(privacyUrl)}`;
     }
 
     return url;
   };
 
+  const getIframeCode = (widget: WidgetMetadata) => {
+    const url = getWidgetUrl(widget.id, true);
+    return `<iframe src="${url}" width="${widget.defaultWidth}" height="${widget.defaultHeight}" style="border:none; border-radius:12px; overflow:hidden;"></iframe>`;
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Embed code copied!');
+    alert("Embed code copied!");
   };
 
   return (
@@ -38,12 +44,15 @@ const WidgetPortal: React.FC = () => {
           </h1>
         </div>
         <nav className="flex-1 p-4 space-y-2">
-          {WIDGETS.map(widget => (
+          {WIDGETS.map((widget) => (
             <button
               key={widget.id}
               onClick={() => setSelectedWidget(widget)}
-              className={`w-full text-left p-3 rounded-lg transition-colors flex items-center gap-3 ${selectedWidget?.id === widget.id ? 'bg-indigo-700 shadow-inner' : 'hover:bg-indigo-800'
-                }`}
+              className={`w-full text-left p-3 rounded-lg transition-colors flex items-center gap-3 ${
+                selectedWidget?.id === widget.id
+                  ? "bg-indigo-700 shadow-inner"
+                  : "hover:bg-indigo-800"
+              }`}
             >
               <i className={`fas ${widget.icon} w-5`}></i>
               <span className="text-sm font-medium">{widget.name}</span>
@@ -60,7 +69,9 @@ const WidgetPortal: React.FC = () => {
         {selectedWidget ? (
           <div className="p-8 max-w-7xl mx-auto w-full">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-800">{selectedWidget.name}</h2>
+              <h2 className="text-3xl font-bold text-gray-800">
+                {selectedWidget.name}
+              </h2>
               <p className="text-gray-500 mt-2">{selectedWidget.description}</p>
             </div>
 
@@ -74,8 +85,11 @@ const WidgetPortal: React.FC = () => {
                   className="bg-white rounded-xl shadow-lg border-4 border-white overflow-hidden relative mx-auto"
                   style={{
                     height: selectedWidget.defaultHeight,
-                    maxWidth: selectedWidget.defaultWidth === '100%' ? '100%' : selectedWidget.defaultWidth,
-                    width: '100%'
+                    maxWidth:
+                      selectedWidget.defaultWidth === "100%"
+                        ? "100%"
+                        : selectedWidget.defaultWidth,
+                    width: "100%",
                   }}
                 >
                   <iframe
@@ -94,28 +108,15 @@ const WidgetPortal: React.FC = () => {
                     <i className="fas fa-cog text-indigo-500"></i> Configuration
                   </h3>
                   <div className="space-y-4">
-                    <div>
-                      <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                        Base URL <span className="text-gray-400">(optional)</span>
-                      </label>
-                      <input
-                        type="url"
-                        id="baseUrl"
-                        value={baseUrl}
-                        onChange={(e) => setBaseUrl(e.target.value)}
-                        placeholder={window.location.href.split('#')[0]}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      />
-                      <p className="mt-2 text-xs text-gray-500">
-                        The base URL where your widget is hosted. Leave empty to use the current location.
-                      </p>
-                    </div>
-
                     {/* Widget-specific Configuration for SignUpWidget */}
-                    {selectedWidget.id === 'signup' && (
+                    {selectedWidget.id === "signup" && (
                       <div>
-                        <label htmlFor="privacyUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                          Privacy Policy URL <span className="text-gray-400">(optional)</span>
+                        <label
+                          htmlFor="privacyUrl"
+                          className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                          Privacy Policy URL{" "}
+                          <span className="text-gray-400">(optional)</span>
                         </label>
                         <input
                           type="url"
@@ -126,7 +127,9 @@ const WidgetPortal: React.FC = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                         />
                         <p className="mt-2 text-xs text-gray-500">
-                          The URL that will be linked in the GDPR consent checkbox. Leave empty to use the default "/privacy" path.
+                          The URL that will be linked in the GDPR consent
+                          checkbox. Leave empty to use the default "/privacy"
+                          path.
                         </p>
                       </div>
                     )}
@@ -137,13 +140,15 @@ const WidgetPortal: React.FC = () => {
                   <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
                     <i className="fas fa-code text-green-500"></i> Embed Code
                   </h3>
-                  <div className="bg-gray-900 rounded-lg p-4 relative group">
-                    <pre className="text-green-400 text-sm overflow-x-auto">
+                  <div className="bg-gray-900 rounded-lg p-10 relative group">
+                    <pre className="text-green-400 text-sm overflow-x-auto pr-16 mt-4">
                       {`<iframe\n  src="${getWidgetUrl(selectedWidget.id, true)}"\n  width="${selectedWidget.defaultWidth}"\n  height="${selectedWidget.defaultHeight}"\n  style="border:none; border-radius:12px; overflow:hidden;"\n></iframe>`}
                     </pre>
                     <button
-                      onClick={() => copyToClipboard(`<iframe src="${getWidgetUrl(selectedWidget.id, true)}" width="${selectedWidget.defaultWidth}" height="${selectedWidget.defaultHeight}" style="border:none; border-radius:12px; overflow:hidden;"></iframe>`)}
-                      className="absolute top-4 right-4 bg-gray-700 text-white p-2 rounded hover:bg-gray-600 transition"
+                      onClick={() =>
+                        copyToClipboard(getIframeCode(selectedWidget))
+                      }
+                      className="absolute top-6 right-6 bg-gray-700 text-white p-2 rounded hover:bg-gray-600 transition"
                     >
                       <i className="fas fa-copy"></i>
                     </button>
@@ -151,30 +156,42 @@ const WidgetPortal: React.FC = () => {
                 </section>
 
                 <section className="bg-white p-6 rounded-xl border border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-400 uppercase mb-4">Configuration Details</h3>
+                  <h3 className="text-sm font-bold text-gray-400 uppercase mb-4">
+                    Configuration Details
+                  </h3>
                   <div className="space-y-3">
                     {baseUrl && (
                       <div className="flex justify-between text-sm pb-2 border-b border-gray-200">
                         <span className="text-gray-500">Base URL:</span>
-                        <span className="font-mono text-gray-700 text-xs break-all">{baseUrl}</span>
+                        <span className="font-mono text-gray-700 text-xs break-all">
+                          {baseUrl}
+                        </span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Iframe Target:</span>
-                      <code className="bg-gray-100 px-2 py-0.5 rounded text-indigo-600 text-xs break-all">{getWidgetUrl(selectedWidget.id, true)}</code>
+                      <code className="bg-gray-100 px-2 py-0.5 rounded text-indigo-600 text-xs break-all">
+                        {getWidgetUrl(selectedWidget.id, true)}
+                      </code>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Suggested Width:</span>
-                      <span className="font-mono text-gray-700">{selectedWidget.defaultWidth}</span>
+                      <span className="font-mono text-gray-700">
+                        {selectedWidget.defaultWidth}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Suggested Height:</span>
-                      <span className="font-mono text-gray-700">{selectedWidget.defaultHeight}</span>
+                      <span className="font-mono text-gray-700">
+                        {selectedWidget.defaultHeight}
+                      </span>
                     </div>
-                    {selectedWidget.id === 'signup' && privacyUrl && (
+                    {selectedWidget.id === "signup" && privacyUrl && (
                       <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
                         <span className="text-gray-500">Privacy URL:</span>
-                        <span className="font-mono text-gray-700 text-xs break-all">{privacyUrl}</span>
+                        <span className="font-mono text-gray-700 text-xs break-all">
+                          {privacyUrl}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -187,9 +204,12 @@ const WidgetPortal: React.FC = () => {
             <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mb-6 text-indigo-600 text-4xl">
               <i className="fas fa-cubes"></i>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Select a Widget</h2>
+            <h2 className="text-2xl font-bold text-gray-800">
+              Select a Widget
+            </h2>
             <p className="text-gray-500 max-w-md mt-2">
-              Explore our library of embeddable components. Click a widget on the left to see its preview and get the integration code.
+              Explore our library of embeddable components. Click a widget on
+              the left to see its preview and get the integration code.
             </p>
           </div>
         )}

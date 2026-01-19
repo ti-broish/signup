@@ -24,14 +24,17 @@ const App: React.FC = () => {
 
   // Simple Router Implementation
   const renderContent = () => {
-    // Match /#/widget/{id}
-    const widgetMatch = route.match(/^#\/widget\/(.+)$/);
+    // Match /#/widget/{id} - extract just the ID without query params
+    const widgetMatch = route.match(/^#\/widget\/([^?]+)/);
 
     if (widgetMatch) {
       const widgetId = widgetMatch[1];
 
-      // Parse URL parameters for widget configuration
-      const urlParams = new URLSearchParams(window.location.search);
+      // Get privacyUrl from query parameters in the hash
+      // The hash might be like: #/widget/signup?privacyUrl=...
+      const hashQueryStart = route.indexOf('?');
+      const queryString = hashQueryStart !== -1 ? route.substring(hashQueryStart + 1) : '';
+      const urlParams = new URLSearchParams(queryString);
       const privacyUrl = urlParams.get('privacyUrl') || undefined;
 
       // Standalone widget rendering for iframes
