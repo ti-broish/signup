@@ -1,0 +1,288 @@
+/* SignUpWidget.css */
+
+.volunteer-registration-form {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 2.5rem;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+.volunteer-registration-form h2 {
+    text-align: center;
+    color: #1a237e;
+    font-size: 2rem;
+    margin-bottom: 2.5rem;
+    font-weight: 700;
+}
+
+.form-section {
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.form-section h3 {
+    color: #3949ab;
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.form-group {
+    margin-bottom: 1.8rem;
+    position: relative;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.6rem;
+    color: #444;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.required {
+    color: #ff0600b3;
+    margin-left: 2px;
+}
+
+/* Input Wrapper & Tooltip Logic */
+.input-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    line-height: normal;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: #fafafa;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #3949ab;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(57, 73, 171, 0.1);
+}
+
+/* Validation States */
+.has-error input,
+.has-error select {
+    border-color: #e53935 !important;
+    background-color: #fff8f8;
+}
+
+/* Tooltip Styling */
+.validation-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    background-color: #e53935;
+    color: white;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(229, 57, 53, 0.3);
+    white-space: nowrap;
+}
+
+.validation-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 20px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #e53935 transparent transparent transparent;
+}
+
+/* Show Tooltip on Focus or Hover when there is an error */
+.has-error .input-wrapper:hover .validation-tooltip,
+.has-error .input-wrapper:focus-within .validation-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Selection Specifics */
+.form-group select:disabled {
+    background-color: #eeeeee;
+    cursor: not-allowed;
+    border-color: #d0d0d0;
+}
+
+/* Radio & Checkbox */
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    background: #f9f9f9;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+    margin-bottom: 0;
+    font-size: 1rem;
+}
+
+.radio-group input[type="radio"],
+.radio-group input[type="checkbox"] {
+    margin-right: 0.8rem;
+    width: 20px;
+    height: 20px;
+    accent-color: #3949ab;
+    cursor: pointer;
+}
+
+/* Specific styling for the hierarchical list to make it look connected */
+.radio-group label {
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.radio-group label:hover {
+    background-color: #f0f2f9;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    font-weight: 500 !important;
+    line-height: 1.4;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 1rem;
+    margin-top: 0.2rem;
+    width: 20px;
+    height: 20px;
+    accent-color: #3949ab;
+    cursor: pointer;
+}
+
+.checkbox-label a {
+    color: #3949ab;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.checkbox-label a:hover {
+    text-decoration: underline;
+}
+
+/* Error Messages (for special cases like GDPR) */
+.error-message {
+    color: #e53935;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.submit-error {
+    text-align: center;
+    padding: 1rem;
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+/* Info Box */
+.info-text {
+    background-color: #e8eaf6;
+    padding: 1.2rem;
+    border-radius: 8px;
+    border-left: 5px solid #3949ab;
+    margin-top: 1.5rem;
+}
+
+.info-text p {
+    margin: 0;
+    color: #283593;
+    font-size: 0.95rem;
+}
+
+/* Submit Button */
+.submit-button {
+    width: 100%;
+    padding: 1.1rem;
+    background: linear-gradient(135deg, #3949ab, #1a237e);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(26, 35, 126, 0.2);
+    margin-top: 1rem;
+}
+
+.submit-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #3f51b5, #283593);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(26, 35, 126, 0.3);
+}
+
+.submit-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.submit-button:disabled {
+    background: #bdbdbd;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Loading Spinner Placeholder */
+.loading {
+    text-align: center;
+    padding: 4rem;
+    font-size: 1.3rem;
+    color: #5c6bc0;
+    font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .volunteer-registration-form {
+        padding: 1.5rem;
+        margin: 1rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .validation-tooltip {
+        white-space: normal;
+        max-width: 250px;
+    }
+}

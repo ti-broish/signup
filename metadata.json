@@ -1,0 +1,4 @@
+{
+  "name": "Iframe Widget Portal",
+  "description": "A React application designed to serve individual components as embeddable iframes, featuring a dashboard to preview and manage various widgets."
+}
