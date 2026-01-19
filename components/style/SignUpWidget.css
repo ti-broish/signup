@@ -286,3 +286,26 @@
         max-width: 250px;
     }
 }
+
+.turnstile-widget {
+    display: flex;
+    justify-content: center;
+    margin: 1rem 0;
+    min-height: 65px;
+    /* Reserve space for widget */
+}
+
+/* Responsive Turnstile */
+@media (max-width: 480px) {
+    .turnstile-widget {
+        transform: scale(0.9);
+        transform-origin: center;
+    }
+}
+
+/* Loading state for Turnstile */
+.turnstile-widget:empty::after {
+    content: 'Зареждане на валидация...';
+    color: #666;
+    font-size: 0.9rem;
+}

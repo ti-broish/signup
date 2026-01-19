@@ -75,6 +75,11 @@ interface TouchedFields {
 const SignUpWidget: React.FC = () => {
     const ABROAD_ID = '32'; // ID за "Извън страната"
     const BULGARIA_ID = '000'; // ID за "България"
+    const TURNSTILE_SITE_KEY = process.env.VITE_TURNSTILE_SITE_KEY || 'TURNSTILE_SITE_KEY';
+
+    // Add turnstile refs
+    const turnstileRef = useRef<HTMLDivElement>(null);
+    const widgetIdRef = useRef<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState<FormData>({
@@ -102,12 +107,90 @@ const SignUpWidget: React.FC = () => {
     const [pollingStations, setPollingStations] = useState<PollingStation[]>([]);
     const [countries, setCountries] = useState<Country[]>([]);
 
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
     const isAbroad = formData.region?.code === ABROAD_ID;
 
     // Tracking states
     const [errors, setErrors] = useState<FormErrors>({});
     const [touched, setTouched] = useState<TouchedFields>({});
     const [loading, setLoading] = useState<boolean>(true);
+
+    // Load Turnstile script
+    useEffect(() => {
+        // Check if script already exists
+        if (document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')) {
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+
+        return () => {
+            // Cleanup on unmount
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+        };
+    }, []);
+
+    // Initialize Turnstile widget
+    useEffect(() => {
+        if (!turnstileRef.current) return;
+
+        const renderTurnstile = () => {
+            if (window.turnstile && !widgetIdRef.current) {
+                try {
+                    widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+                        sitekey: TURNSTILE_SITE_KEY,
+                        callback: (token: string) => {
+                            setTurnstileToken(token);
+                            setErrors(prev => {
+                                const { turnstile, ...rest } = prev;
+                                return rest;
+                            });
+                        },
+                        'error-callback': () => {
+                            setTurnstileToken(null);
+                            setErrors(prev => ({
+                                ...prev,
+                                turnstile: 'Грешка при валидацията. Моля опитайте отново.'
+                            }));
+                        },
+                        'expired-callback': () => {
+                            setTurnstileToken(null);
+                            setErrors(prev => ({
+                                ...prev,
+                                turnstile: 'Валидацията изтече. Моля опитайте отново.'
+                            }));
+                        },
+                        theme: 'light',
+                        size: 'normal',
+                        language: 'bg'
+                    });
+                } catch (error) {
+                    console.error('Error rendering Turnstile:', error);
+                }
+            }
+        };
+
+        // Wait for Turnstile script to load
+        if (window.turnstile) {
+            renderTurnstile();
+        } else {
+            const checkTurnstile = setInterval(() => {
+                if (window.turnstile) {
+                    renderTurnstile();
+                    clearInterval(checkTurnstile);
+                }
+            }, 100);
+
+            return () => clearInterval(checkTurnstile);
+        }
+    }, [TURNSTILE_SITE_KEY]);
 
     // Fetch initial data
     useEffect(() => {
@@ -283,11 +366,17 @@ const SignUpWidget: React.FC = () => {
             newErrors.gdprConsent = 'Трябва да приемете условията';
         }
 
+        // Turnstile validation
+        if (!turnstileToken) {
+            newErrors.turnstile = 'Моля потвърдете, че не сте робот';
+        }
+
         setErrors(newErrors);
 
         if (setAllTouched) {
             const allTouched: TouchedFields = {};
             Object.keys(formData).forEach(key => allTouched[key] = true);
+            allTouched.turnstile = true;
             setTouched(allTouched);
         }
 
@@ -415,9 +504,23 @@ const SignUpWidget: React.FC = () => {
         try {
             await api.post('volunteers', formData);
             alert('Успешна регистрация!');
+
+            // Reset Turnstile widget
+            if (window.turnstile && widgetIdRef.current) {
+                window.turnstile.reset(widgetIdRef.current);
+            }
+            setTurnstileToken(null);
+
         } catch (error) {
             console.error('Error submitting form:', error);
             setErrors(prev => ({ ...prev, submit: 'Грешка при подаване на формата' }));
+
+
+            // Reset Turnstile on error
+            if (window.turnstile && widgetIdRef.current) {
+                window.turnstile.reset(widgetIdRef.current);
+            }
+            setTurnstileToken(null);
         }
     };
 
@@ -719,6 +822,15 @@ const SignUpWidget: React.FC = () => {
                 </div>
 
                 <div className="form-section">
+                    <div className={`form-group ${errors.turnstile && touched.turnstile ? 'has-error' : ''}`}>
+                        <div ref={turnstileRef} className="turnstile-widget"></div>
+                        {errors.turnstile && touched.turnstile && (
+                            <span className="error-message">{errors.turnstile}</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="form-section">
                     <div className={`form-group ${errors.gdprConsent && touched.gdprConsent ? 'has-error' : ''}`}>
                         <label className="checkbox-label">
                             <input
@@ -740,7 +852,7 @@ const SignUpWidget: React.FC = () => {
 
                 {errors.submit && <div className="error-message submit-error">{errors.submit}</div>}
 
-                <button type="submit" className="submit-button" disabled={!formData.gdprConsent || Object.keys(errors).length > 0}>
+                <button type="submit" className="submit-button" disabled={!formData.gdprConsent || !turnstileToken || Object.keys(errors).length > 0}>
                     Регистрирай се
                 </button>
             </form>
