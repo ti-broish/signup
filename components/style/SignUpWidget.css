@@ -108,7 +108,7 @@
 }
 
 .validation-tooltip::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 100%;
     left: 20px;
@@ -274,7 +274,6 @@
 @media (max-width: 600px) {
     .volunteer-registration-form {
         padding: 1.5rem;
-        margin: 1rem;
     }
 
     .form-group label {
@@ -305,7 +304,7 @@
 
 /* Loading state for Turnstile */
 .turnstile-widget:empty::after {
-    content: 'Зареждане на валидация...';
+    content: "Зареждане на валидация...";
     color: #666;
     font-size: 0.9rem;
 }

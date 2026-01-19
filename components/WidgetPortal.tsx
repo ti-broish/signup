@@ -75,33 +75,32 @@ const WidgetPortal: React.FC = () => {
               <p className="text-gray-500 mt-2">{selectedWidget.description}</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               {/* Preview */}
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <i className="fas fa-eye text-indigo-500"></i> Live Preview
-                </h3>
+              <div className="space-y-6 sticky top-8">
                 <div
-                  className="bg-white rounded-xl shadow-lg border-4 border-white overflow-hidden relative mx-auto"
+                  className="shadow-lg overflow-auto relative p-4"
                   style={{
-                    height: selectedWidget.defaultHeight,
-                    maxWidth:
-                      selectedWidget.defaultWidth === "100%"
-                        ? "100%"
-                        : selectedWidget.defaultWidth,
-                    width: "100%",
+                    maxHeight: "calc(100vh - 200px)",
+                    width: "fit-content",
+                    maxWidth: "100%",
                   }}
                 >
                   <iframe
                     src={getWidgetUrl(selectedWidget.id, true)}
-                    className="w-full h-full border-none"
+                    className="border-none"
+                    style={{
+                      display: "block",
+                      width: selectedWidget.defaultWidth,
+                      height: selectedWidget.defaultHeight,
+                    }}
                     title={selectedWidget.name}
                   />
                 </div>
               </div>
 
               {/* Implementation */}
-              <div className="space-y-6">
+              <div className="space-y-6 flex flex-col">
                 {/* General Configuration */}
                 <section className="bg-white p-6 rounded-xl border border-gray-200">
                   <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
