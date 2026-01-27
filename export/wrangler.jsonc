@@ -1,16 +1,19 @@
 {
   "name": "signup-export",
   "main": "src/index.ts",
+  "account_id": "579692914a155ab268c22b814cbf8a05",
   "compatibility_date": "2024-01-01",
+  "workers_dev": false,
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "signup-db",
-      "database_id": "" // Set this after creating the database (same as signup-submit)
+      "database_name": "signup-db-staging",
+      "database_id": "922e6548-6b80-4762-aee5-bdc00fc80432"
     }
   ],
   "triggers": {
-    "crons": ["0 */6 * * *"] // Run every 6 hours
+    "crons": [] // No cron in default/staging
   },
   "vars": {
     "GOOGLE_SHEETS_API_KEY": "",
@@ -18,7 +21,26 @@
     "GOOGLE_SHEETS_RANGE": "Sheet1!A:Z"
   },
   "env": {
+    "staging": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "signup-db-staging",
+          "database_id": "922e6548-6b80-4762-aee5-bdc00fc80432"
+        }
+      ],
+      "triggers": {
+        "crons": [] // No cron in staging
+      }
+    },
     "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "signup-db-production",
+          "database_id": "929d8b25-5dce-4e27-a89a-030bf56a9c1f"
+        }
+      ],
       "triggers": {
         "crons": ["0 */6 * * *"] // Every 6 hours in production
       }

@@ -14,15 +14,15 @@ export interface VolunteerFormData {
   email: string;
   phone: string;
   egn: string;
-  country?: { code: string; name: string } | null;
-  region?: { code: string; name: string } | null;
-  municipality?: { code: string; name: string } | null;
-  settlement?: { id: number; name: string } | null;
-  cityRegion?: { code: string; name: string } | null;
-  pollingStation?: { id: string; place: string } | string | null;
-  travelAbility: 'no' | 'settlement' | 'municipality' | 'region' | 'risky_distant';
+  country: string; // String name, defaults to "България"
+  region?: string | null; // String name
+  municipality?: string | null; // String name
+  settlement?: string | null; // String name
+  cityRegion?: string | null; // String name
+  pollingStation?: string | null; // String address
+  travelAbility: string; // Bulgarian string like "Не", "В рамките на населеното място", etc.
   gdprConsent: boolean;
-  role: 'poll_watcher' | 'video_surveillance';
+  role: string; // Bulgarian string like "Пазител на вота в секция"
   turnstileToken?: string;
   referralCode: string;
   referredBy?: string | null;
@@ -155,37 +155,45 @@ export async function handleVolunteerSubmission(
     }
 
     // Insert into database
-    const result = await env.DB.prepare(
-      `INSERT INTO volunteers (
-        firstName, middleName, lastName, email, phone, egn,
-        country, region, municipality, settlement, cityRegion, pollingStation,
-        travelAbility, gdprConsent, role, referralCode, referredBy
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(
-        formData.firstName,
-        formData.middleName || null,
-        formData.lastName,
-        formData.email,
-        formData.phone,
-        formData.egn,
-        formData.country ? JSON.stringify(formData.country) : null,
-        formData.region ? JSON.stringify(formData.region) : null,
-        formData.municipality ? JSON.stringify(formData.municipality) : null,
-        formData.settlement ? JSON.stringify(formData.settlement) : null,
-        formData.cityRegion ? JSON.stringify(formData.cityRegion) : null,
-        formData.pollingStation
-          ? typeof formData.pollingStation === 'string'
-            ? formData.pollingStation
-            : JSON.stringify(formData.pollingStation)
-          : null,
-        formData.travelAbility,
-        formData.gdprConsent ? 1 : 0,
-        formData.role,
-        formData.referralCode,
-        formData.referredBy || null
+    let result;
+    try {
+      result = await env.DB.prepare(
+        `INSERT INTO volunteers (
+          firstName, middleName, lastName, email, phone, egn,
+          country, region, municipality, settlement, cityRegion, pollingStation,
+          travelAbility, gdprConsent, role, referralCode, referredBy
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run();
+        .bind(
+          formData.firstName,
+          formData.middleName || null,
+          formData.lastName,
+          formData.email,
+          formData.phone,
+          formData.egn,
+          formData.country || 'България', // Default to България if not provided
+          formData.region || null,
+          formData.municipality || null,
+          formData.settlement || null,
+          formData.cityRegion || null,
+          formData.pollingStation || null,
+          formData.travelAbility,
+          formData.gdprConsent ? 1 : 0,
+          formData.role,
+          formData.referralCode,
+          formData.referredBy || null
+        )
+        .run();
+    } catch (dbError) {
+      const dbErrorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+      logger.error('Database insert failed', dbError, {
+        ipAddress,
+        email: formData.email,
+        dbError: dbErrorMessage,
+      });
+      console.error('Database error:', dbErrorMessage, dbError);
+      throw dbError; // Re-throw to be caught by outer catch
+    }
 
     logger.info('Volunteer submission successful', {
       ipAddress,
@@ -205,13 +213,30 @@ export async function handleVolunteerSubmission(
       }
     );
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     logger.error('Error processing volunteer submission', error, {
+      ipAddress,
+      userAgent,
+      errorMessage,
+      errorStack,
+    });
+
+    // Log to console for immediate visibility (Cloudflare Workers logs)
+    console.error('Volunteer submission error:', {
+      message: errorMessage,
+      stack: errorStack,
       ipAddress,
       userAgent,
     });
 
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        // Include error message in staging for debugging
+        ...(env.TURNSTILE_SECRET_KEY && { details: errorMessage })
+      }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

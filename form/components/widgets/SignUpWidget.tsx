@@ -77,10 +77,13 @@ interface SignUpWidgetProps {
     privacyUrl?: string;
 }
 
-const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) => {
+const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
+    // Get privacy URL from env var or prop, default to https://tibroish.bg/privacy-notice
+    const effectivePrivacyUrl = privacyUrl || 
+        (typeof process !== 'undefined' && process.env?.VITE_PRIVACY_URL) || 
+        'https://tibroish.bg/privacy-notice';
     const ABROAD_ID = '32'; // ID за "Извън страната"
     const BULGARIA_ID = '000'; // ID за "България"
-    const TURNSTILE_SITE_KEY = process.env.VITE_TURNSTILE_SITE_KEY || 'TURNSTILE_SITE_KEY';
     const STORAGE_KEY = 'signup-form-draft';
 
     // Disable Turnstile in local development
@@ -90,6 +93,10 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
         window.location.hostname === '[::1]' ||
         window.location.hostname.includes('.local')
     );
+
+    // Read Turnstile site key from process.env (replaced at build time by Vite)
+    // Vite replaces process.env.VITE_TURNSTILE_SITE_KEY with the actual string value
+    const turnstileSiteKey = process.env.VITE_TURNSTILE_SITE_KEY || '';
 
     // Add turnstile refs
     const turnstileRef = useRef<HTMLDivElement>(null);
@@ -155,6 +162,19 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
         script.async = true;
         script.defer = true;
+        
+        script.onload = () => {
+            console.log('Turnstile script loaded successfully');
+        };
+        
+        script.onerror = (error) => {
+            console.error('Failed to load Turnstile script:', error);
+            setErrors(prev => ({
+                ...prev,
+                turnstile: 'Не може да се зареди скриптът за валидация. Моля опитайте отново.'
+            }));
+        };
+        
         document.head.appendChild(script);
 
         return () => {
@@ -165,27 +185,39 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
         };
     }, [isLocalDev]);
 
-    // Initialize Turnstile widget (skip in local development)
+    // Initialize Turnstile widget (skip in local development or if site key is missing)
     useEffect(() => {
         if (isLocalDev) {
             return; // Skip Turnstile initialization in local dev
         }
 
-        if (!turnstileRef.current) return;
+        // Skip if site key is not set
+        if (!turnstileSiteKey || turnstileSiteKey.trim() === '' || turnstileSiteKey === 'TURNSTILE_SITE_KEY') {
+            console.warn('Turnstile site key is not set. Skipping Turnstile initialization.');
+            // Auto-set token so form can be submitted without Turnstile
+            setTurnstileToken('no-turnstile');
+            return;
+        }
+
+        // Wait for ref to be available - don't return early, let the polling handle it
+        // The renderTurnstile function checks for turnstileRef.current, so it's safe
 
         const renderTurnstile = () => {
-            if (window.turnstile && !widgetIdRef.current) {
+            if (window.turnstile && !widgetIdRef.current && turnstileRef.current) {
                 try {
+                    console.log('Rendering Turnstile with site key:', turnstileSiteKey.substring(0, 10) + '...');
                     widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-                        sitekey: TURNSTILE_SITE_KEY,
+                        sitekey: turnstileSiteKey,
                         callback: (token: string) => {
+                            console.log('Turnstile callback received, token length:', token.length);
                             setTurnstileToken(token);
                             setErrors(prev => {
                                 const { turnstile, ...rest } = prev;
                                 return rest;
                             });
                         },
-                        'error-callback': () => {
+                        'error-callback': (error: any) => {
+                            console.error('Turnstile error callback:', error);
                             setTurnstileToken(null);
                             setErrors(prev => ({
                                 ...prev,
@@ -193,6 +225,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
                             }));
                         },
                         'expired-callback': () => {
+                            console.log('Turnstile expired');
                             setTurnstileToken(null);
                             setErrors(prev => ({
                                 ...prev,
@@ -203,26 +236,79 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
                         size: 'normal',
                         language: 'bg'
                     });
+                    console.log('Turnstile widget rendered, ID:', widgetIdRef.current);
                 } catch (error) {
                     console.error('Error rendering Turnstile:', error);
+                    setErrors(prev => ({
+                        ...prev,
+                        turnstile: 'Грешка при инициализация на валидацията.'
+                    }));
                 }
+            } else {
+                console.log('Turnstile render conditions:', {
+                    hasTurnstile: !!window.turnstile,
+                    hasWidgetId: !!widgetIdRef.current,
+                    hasRef: !!turnstileRef.current
+                });
             }
         };
 
-        // Wait for Turnstile script to load
-        if (window.turnstile) {
+        // Wait for Turnstile script to load (with timeout)
+        let timeoutId: NodeJS.Timeout;
+        let checkInterval: NodeJS.Timeout;
+        
+        const attemptRender = () => {
+            if (!turnstileRef.current) {
+                console.log('Turnstile ref not ready yet');
+                return false;
+            }
+            if (!window.turnstile) {
+                console.log('Turnstile script not loaded yet');
+                return false;
+            }
+            if (widgetIdRef.current) {
+                console.log('Turnstile widget already rendered');
+                return true;
+            }
             renderTurnstile();
-        } else {
-            const checkTurnstile = setInterval(() => {
-                if (window.turnstile) {
-                    renderTurnstile();
-                    clearInterval(checkTurnstile);
-                }
-            }, 100);
-
-            return () => clearInterval(checkTurnstile);
+            if (checkInterval) clearInterval(checkInterval);
+            if (timeoutId) clearTimeout(timeoutId);
+            return true;
+        };
+        
+        if (attemptRender()) {
+            // Already available
+            return;
         }
-    }, [TURNSTILE_SITE_KEY, isLocalDev]);
+        
+        // Poll for Turnstile availability
+        checkInterval = setInterval(() => {
+            if (attemptRender()) {
+                // Successfully rendered
+            }
+        }, 100);
+
+        // Timeout after 15 seconds
+        timeoutId = setTimeout(() => {
+            if (checkInterval) clearInterval(checkInterval);
+            if (!widgetIdRef.current) {
+                console.error('Turnstile failed to load after 15 seconds', {
+                    turnstileAvailable: !!window.turnstile,
+                    refAvailable: !!turnstileRef.current,
+                    siteKey: turnstileSiteKey ? turnstileSiteKey.substring(0, 10) + '...' : 'missing'
+                });
+                setErrors(prev => ({
+                    ...prev,
+                    turnstile: 'Валидацията не може да се зареди. Моля опитайте отново или обновете страницата.'
+                }));
+            }
+        }, 15000);
+
+        return () => {
+            if (checkInterval) clearInterval(checkInterval);
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [turnstileSiteKey, isLocalDev]);
 
     // Load persisted form data from localStorage
     const loadPersistedFormData = (): Partial<FormData> | null => {
@@ -882,17 +968,50 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
             // Get referral code from URL if present
             const referredBy = getReferralFromUrl();
 
-            // Prepare submission data - include turnstile token and referral codes
-            // Normalize polling station address if it's a string
-            const normalizedPollingStation = typeof formData.pollingStation === 'string'
+            // Prepare submission data - convert objects to strings for database
+            // Normalize polling station address
+            const pollingStationString = typeof formData.pollingStation === 'string'
                 ? normalizeAddress(formData.pollingStation)
-                : formData.pollingStation
-                    ? { ...formData.pollingStation, place: normalizeAddress(formData.pollingStation.place) }
-                    : formData.pollingStation;
+                : formData.pollingStation?.place
+                    ? normalizeAddress(formData.pollingStation.place)
+                    : null;
+
+            // Convert role to Bulgarian string
+            const roleMap: Record<string, string> = {
+                'poll_watcher': 'Пазител на вота в секция',
+                'video_surveillance': 'Видеонаблюдение от вкъщи'
+            };
+            const roleString = roleMap[formData.role] || formData.role;
+
+            // Convert travelAbility to Bulgarian string (simplified, without customization)
+            const travelAbilityMap: Record<string, string> = {
+                'no': 'Не',
+                'settlement': 'В рамките на населеното място',
+                'municipality': 'В рамките на общината',
+                'region': 'В рамките на областта',
+                'risky_distant': 'Рискови секции на далечно разстояние'
+            };
+            const travelAbilityString = travelAbilityMap[formData.travelAbility] || formData.travelAbility;
+
+            // Default country to България if not set
+            const countryString = formData.country?.name || 'България';
 
             const submissionData = {
-                ...formData,
-                pollingStation: normalizedPollingStation,
+                firstName: formData.firstName,
+                middleName: formData.middleName,
+                lastName: formData.lastName,
+                email: formData.email,
+                phone: formData.phone,
+                egn: formData.egn,
+                country: countryString,
+                region: formData.region?.name || null,
+                municipality: formData.municipality?.name || null,
+                settlement: formData.settlement?.name || null,
+                cityRegion: formData.cityRegion?.name || null,
+                pollingStation: pollingStationString,
+                travelAbility: travelAbilityString,
+                gdprConsent: formData.gdprConsent,
+                role: roleString,
                 turnstileToken: isLocalDev ? 'local-dev-token' : turnstileToken,
                 referralCode: referralCode,
                 referredBy: referredBy || null
@@ -1417,7 +1536,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
                     </div>
                 </div>
 
-                {!isLocalDev && (
+                {!isLocalDev && turnstileSiteKey && turnstileSiteKey.trim() !== '' && (
                     <div className="form-section">
                         <div className={`form-group ${errors.turnstile && touched.turnstile ? 'has-error' : ''}`}>
                             <div ref={turnstileRef} className="turnstile-widget"></div>
@@ -1439,7 +1558,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
                                 onBlur={() => handleBlur('gdprConsent')}
                             />
                             <span>
-                                Съгласен/на съм с <a href={privacyUrl} target="_blank">условията за съхраняване на лични данни</a> <span className="required">*</span>
+                                Съгласен/на съм с <a href={effectivePrivacyUrl} target="_blank">условията за съхраняване на лични данни</a> <span className="required">*</span>
                             </span>
                         </label>
                         {errors.gdprConsent && touched.gdprConsent && (
@@ -1455,7 +1574,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) 
                     className="submit-button"
                     disabled={
                         !formData.gdprConsent ||
-                        (!isLocalDev && !turnstileToken) ||
+                        (!isLocalDev && turnstileSiteKey && turnstileSiteKey.trim() !== '' && !turnstileToken) ||
                         // Only check errors for fields that have been touched/blurred
                         Object.keys(errors).some(key => {
                             const fieldKey = key as keyof TouchedFields;

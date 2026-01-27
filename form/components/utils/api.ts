@@ -4,9 +4,10 @@ import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 const DATA_URL = (typeof process !== 'undefined' && process.env?.VITE_DATA_URL) || 
                  'https://api.tibroish.bg';
 
-// Get submission URL from environment variable, default to submit worker endpoint
+// Get submission URL from environment variable
+// If not set, derive from current window location (same domain)
 const SUBMIT_URL = (typeof process !== 'undefined' && process.env?.VITE_SUBMIT_URL) || 
-                   'https://submit.signup.example.com';
+                   (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : '');
 
 // Create axios instance factory
 const createApiInstance = (baseURL: string): AxiosInstance => {

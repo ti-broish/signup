@@ -33,7 +33,7 @@ export class RateLimiter {
 
     // Check Turnstile token-based rate limit (prevent token reuse)
     if (turnstileToken) {
-      const tokenResult = await this.checkTokenLimit(turnstileToken, windowStart);
+      const tokenResult = await this.checkTokenLimit(turnstileToken, ipAddress, windowStart);
       if (!tokenResult.allowed) {
         return tokenResult;
       }
@@ -94,6 +94,7 @@ export class RateLimiter {
 
   private async checkTokenLimit(
     turnstileToken: string,
+    ipAddress: string,
     windowStart: number
   ): Promise<RateLimitResult> {
     // Check if this token has already been used
@@ -112,12 +113,12 @@ export class RateLimiter {
       };
     }
 
-    // Mark token as used
+    // Mark token as used (include ip_address as it's NOT NULL)
     await this.db
       .prepare(
-        'INSERT OR REPLACE INTO rate_limits (turnstile_token, count, window_start) VALUES (?, 1, ?)'
+        'INSERT OR REPLACE INTO rate_limits (turnstile_token, ip_address, count, window_start) VALUES (?, ?, 1, ?)'
       )
-      .bind(turnstileToken, windowStart)
+      .bind(turnstileToken, ipAddress, windowStart)
       .run();
 
     return {

@@ -18,7 +18,8 @@ export default defineConfig(({ mode }) => {
         'process.env.VITE_SUBMIT_ENDPOINT': JSON.stringify(env.VITE_SUBMIT_ENDPOINT || 'submit'),
         'process.env.VITE_TURNSTILE_SITE_KEY': JSON.stringify(env.VITE_TURNSTILE_SITE_KEY || ''),
         'process.env.VITE_ELECTION_DATE': JSON.stringify(env.VITE_ELECTION_DATE || '2026-04-19'),
-        'process.env.VITE_FORM_URL': JSON.stringify(env.VITE_FORM_URL || 'https://tibroish.bg/signup')
+        'process.env.VITE_FORM_URL': JSON.stringify(env.VITE_FORM_URL || 'https://tibroish.bg/signup'),
+        'process.env.VITE_PRIVACY_URL': JSON.stringify(env.VITE_PRIVACY_URL || 'https://tibroish.bg/privacy-notice')
       },
       resolve: {
         alias: {
@@ -27,7 +28,11 @@ export default defineConfig(({ mode }) => {
       },
       build: {
         outDir: 'dist',
-        emptyOutDir: true
+        emptyOutDir: true,
+        rollupOptions: {
+          input: path.resolve(__dirname, 'index.html'),
+          // dev.html is not included as it's not in the input
+        },
       }
     };
 });

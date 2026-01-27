@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:staging": "vite build --mode staging",
+    "build:production": "vite build --mode production",
     "preview": "vite preview",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
     "dev:worker": "wrangler dev",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -22,15 +24,19 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
+    "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/ui": "^4.0.17",
+    "autoprefixer": "^10.4.23",
     "jsdom": "^27.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "vitest": "^4.0.17",
-    "wrangler": "^3.78.0"
+    "wrangler": "^4.60.0"
   }
 }
