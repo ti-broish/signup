@@ -65,7 +65,7 @@ const WidgetPortal: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 bg-gray-50 flex flex-col">
+      <main className="flex-1 flex flex-col">
         {selectedWidget ? (
           <div className="p-8 max-w-7xl mx-auto w-full">
             <div className="mb-8">

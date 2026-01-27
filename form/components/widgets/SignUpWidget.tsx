@@ -1576,6 +1576,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                                 Съгласен/на съм с <a href={effectivePrivacyUrl} target="_blank">условията за съхраняване на лични данни</a> <span className="required">*</span>
                             </span>
                         </label>
+                    </div>
+                    <div className="gdpr-error-container">
                         {errors.gdprConsent && touched.gdprConsent && (
                             <span className="error-message">{errors.gdprConsent}</span>
                         )}
