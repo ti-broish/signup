@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --parallel --filter './form' --filter './submit' dev",
+    "dev": "pnpm db:setup:local && pnpm --parallel --filter './form' --filter './submit' dev",
     "build": "pnpm --filter './form' build && pnpm --filter './submit' build && pnpm --filter './export' build",
     "build:staging": "pnpm --filter './form' build:staging && pnpm --filter './submit' build && pnpm --filter './export' build",
     "deploy:form": "pnpm --filter './form' deploy",
@@ -20,6 +20,7 @@
     "deploy:export:staging": "pnpm --filter './export' exec wrangler deploy --config wrangler.jsonc --env staging",
     "deploy:export:production": "pnpm --filter './export' exec wrangler deploy --config wrangler.jsonc --env production",
     "db:setup": "bash scripts/setup-d1-databases.sh",
+    "db:setup:local": "pnpm --filter './submit' db:setup",
     "db:migrate:staging": "cd submit && npx wrangler d1 migrations apply signup-db-staging --env=staging",
     "db:migrate:production": "cd submit && npx wrangler d1 migrations apply signup-db-production --env=production",
     "test": "pnpm --recursive test"

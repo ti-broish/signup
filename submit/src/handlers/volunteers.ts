@@ -70,7 +70,7 @@ export async function handleVolunteerSubmission(
 
     // Validate required fields
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.egn) {
-      logger.warn('Missing required fields', { 
+      logger.warn('Missing required fields', {
         ipAddress,
         missing: {
           firstName: !formData.firstName,
@@ -94,7 +94,7 @@ export async function handleVolunteerSubmission(
 
     // Validate Turnstile token (skip if local dev token or secret key not set)
     const isLocalDev = formData.turnstileToken === 'local-dev-token' || !env.TURNSTILE_SECRET_KEY;
-    
+
     if (!isLocalDev) {
       if (!formData.turnstileToken) {
         logger.warn('Missing Turnstile token', { ipAddress });
@@ -126,7 +126,7 @@ export async function handleVolunteerSubmission(
     });
 
     // Skip rate limiting for local dev token
-    const rateLimitResult = isLocalDev 
+    const rateLimitResult = isLocalDev
       ? { allowed: true, remaining: 999, resetAt: Date.now() }
       : await rateLimiter.checkLimit(ipAddress, formData.turnstileToken);
 
@@ -219,7 +219,7 @@ export async function handleVolunteerSubmission(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     logger.error('Error processing volunteer submission', error, {
       ipAddress,
       userAgent,
@@ -236,7 +236,7 @@ export async function handleVolunteerSubmission(
     });
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Internal server error',
         // Include error message in staging for debugging
         ...(env.TURNSTILE_SECRET_KEY && { details: errorMessage })

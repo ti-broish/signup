@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --config wrangler.jsonc",
-    "deploy": "wrangler deploy --config wrangler.jsonc",
-    "db:migrate": "wrangler d1 migrations apply signup-db-staging --local --config wrangler.jsonc",
+    "deploy": "echo 'Error: Please use deploy:staging or deploy:production' && exit 1",
+    "deploy:staging": "wrangler deploy --env staging --config wrangler.jsonc",
+    "deploy:production": "wrangler deploy --env production --config wrangler.jsonc",
+    "db:migrate": "echo 'For local development, use db:setup instead. For remote databases, use db:migrate:staging or db:migrate:production' && exit 1",
+    "db:migrate:local": "./scripts/apply-local-schema.sh",
     "db:migrate:staging": "wrangler d1 migrations apply signup-db-staging --env staging --remote --config wrangler.jsonc",
     "db:migrate:production": "wrangler d1 migrations apply signup-db-production --env production --remote --config wrangler.jsonc",
     "db:setup": "./scripts/apply-local-schema.sh",
+    "dev:setup": "pnpm run db:setup && pnpm run dev",
     "db:create": "wrangler d1 create signup-db",
     "build": "tsc --noEmit"
   },
