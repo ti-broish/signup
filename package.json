@@ -1,32 +1,22 @@
 {
-  "name": "iframe-widget-portal",
+  "name": "@signup/monorepo",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
-  },
-  "dependencies": {
-    "@google/genai": "^1.37.0",
-    "axios": "^1.13.2",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "recharts": "^3.6.0"
+    "dev": "pnpm --parallel --filter './form' --filter './submit' dev",
+    "build": "pnpm --filter './form' build && pnpm --filter './submit' build && pnpm --filter './export' build",
+    "deploy:form": "pnpm --filter './form' deploy",
+    "deploy:submit": "pnpm --filter './submit' deploy",
+    "deploy:export": "pnpm --filter './export' deploy",
+    "deploy": "pnpm deploy:form && pnpm deploy:submit && pnpm deploy:export",
+    "test": "pnpm --recursive test"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.1",
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "@vitest/ui": "^4.0.17",
-    "jsdom": "^27.4.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "vitest": "^4.0.17"
+    "pnpm": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
   }
 }

@@ -1,0 +1,10 @@
+packages:
+  - form
+  - submit
+  - export
+
+onlyBuiltDependencies:
+  - esbuild
+  - protobufjs
+  - sharp
+  - workerd
