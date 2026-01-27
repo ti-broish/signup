@@ -1,0 +1,41 @@
+{
+  "name": "signup-form",
+  "main": "src/worker.ts",
+  "compatibility_date": "2024-01-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "VITE_DATA_URL": "https://api.tibroish.bg",
+    "VITE_SUBMIT_URL": "https://submit.signup.example.com",
+      "VITE_SUBMIT_ENDPOINT": "submit",
+      "VITE_TURNSTILE_SITE_KEY": "",
+      "VITE_ELECTION_DATE": "2026-04-19",
+      "VITE_FORM_URL": "https://tibroish.bg/signup"
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "VITE_DATA_URL": "https://api.tibroish.bg",
+        "VITE_SUBMIT_URL": "https://submit.signup.example.com",
+        "VITE_SUBMIT_ENDPOINT": "submit",
+        "VITE_ELECTION_DATE": "2026-04-19",
+        "VITE_FORM_URL": "https://tibroish.bg/signup"
+      }
+    },
+    "development": {
+      "vars": {
+        "VITE_DATA_URL": "https://api.tibroish.bg",
+        "VITE_SUBMIT_URL": "http://localhost:8787",
+        "VITE_SUBMIT_ENDPOINT": "submit",
+        "VITE_ELECTION_DATE": "2026-04-19",
+        "VITE_FORM_URL": "https://tibroish.bg/signup"
+      }
+    }
+  }
+}

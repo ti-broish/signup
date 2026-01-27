@@ -1,0 +1,1473 @@
+import React, { useState, useEffect, ChangeEvent, FormEvent, useRef } from 'react';
+import { dataApi, submitApi } from '../utils/api';
+import { validateCyrillic, validatePhone, validateEGN, validateEmail } from '../utils/validation';
+import { generateReferralCode, getReferralFromUrl } from '../utils/referral';
+
+import '../style/SignUpWidget.css';
+
+interface Country {
+    code: string;
+    name: string;
+    isAbroad: boolean;
+}
+
+// 'Община / Район'
+interface Municipality {
+    code: string;
+    name: string;
+}
+
+// Област
+interface Region {
+    code: string;
+    name: string;
+    isAbroad?: boolean;
+    municipalities?: Municipality[];
+}
+
+// Населено място
+interface Settlement {
+    id: number;
+    name: string;
+    cityRegions: CityRegion[];
+}
+
+// Район
+interface CityRegion {
+    code: string;
+    name: string;
+}
+
+// Секция
+interface PollingStation {
+    id: string;
+    code: string;
+    place: string;
+    riskLevel: string;
+    town: Settlement
+}
+
+interface FormData {
+    firstName: string;
+    middleName?: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    egn: string;
+    country: Country | null;
+    region: Region | null;
+    municipality: Municipality | null;
+    settlement: Settlement | null;
+    cityRegion: CityRegion | null;
+    pollingStation: PollingStation | string | null;
+    travelAbility: 'no' | 'settlement' | 'municipality' | 'region' | 'risky_distant';
+    gdprConsent: boolean;
+    role: 'poll_watcher' | 'video_surveillance';
+}
+
+interface FormErrors {
+    [key: string]: string;
+}
+
+interface TouchedFields {
+    [key: string]: boolean;
+}
+
+interface SignUpWidgetProps {
+    privacyUrl?: string;
+}
+
+const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl = '/privacy' }) => {
+    const ABROAD_ID = '32'; // ID за "Извън страната"
+    const BULGARIA_ID = '000'; // ID за "България"
+    const TURNSTILE_SITE_KEY = process.env.VITE_TURNSTILE_SITE_KEY || 'TURNSTILE_SITE_KEY';
+    const STORAGE_KEY = 'signup-form-draft';
+
+    // Disable Turnstile in local development
+    const isLocalDev = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '[::1]' ||
+        window.location.hostname.includes('.local')
+    );
+
+    // Add turnstile refs
+    const turnstileRef = useRef<HTMLDivElement>(null);
+    const widgetIdRef = useRef<string | null>(null);
+    const hasRestoredPersistedData = useRef<boolean>(false);
+    const isRestoringData = useRef<boolean>(false);
+    const successMessageRef = useRef<HTMLDivElement>(null);
+    const hasScrolledToSuccess = useRef<boolean>(false);
+
+    // Form state
+    const [formData, setFormData] = useState<FormData>({
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        egn: '',
+        country: null,
+        region: null,
+        municipality: null,
+        settlement: null,
+        cityRegion: null,
+        pollingStation: null,
+        travelAbility: 'no',
+        gdprConsent: false,
+        role: 'poll_watcher'
+    });
+
+    // API data state
+    const [regions, setRegions] = useState<Region[]>([]);
+    const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+    const [settlements, setSettlements] = useState<Settlement[]>([]);
+    const [pollingStations, setPollingStations] = useState<PollingStation[]>([]);
+    const [countries, setCountries] = useState<Country[]>([]);
+
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [referralCode, setReferralCode] = useState<string>('');
+    const [submittedReferralCode, setSubmittedReferralCode] = useState<string | null>(null);
+    const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+    const [copySuccess, setCopySuccess] = useState<boolean>(false);
+
+    const isAbroad = formData.region?.code === ABROAD_ID;
+
+    // Tracking states
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [touched, setTouched] = useState<TouchedFields>({});
+    const [loading, setLoading] = useState<boolean>(true);
+
+    // Load Turnstile script (skip in local development)
+    useEffect(() => {
+        if (isLocalDev) {
+            // Auto-set token for local development
+            setTurnstileToken('local-dev-token');
+            return;
+        }
+
+        // Check if script already exists
+        if (document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')) {
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+
+        return () => {
+            // Cleanup on unmount
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+        };
+    }, [isLocalDev]);
+
+    // Initialize Turnstile widget (skip in local development)
+    useEffect(() => {
+        if (isLocalDev) {
+            return; // Skip Turnstile initialization in local dev
+        }
+
+        if (!turnstileRef.current) return;
+
+        const renderTurnstile = () => {
+            if (window.turnstile && !widgetIdRef.current) {
+                try {
+                    widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+                        sitekey: TURNSTILE_SITE_KEY,
+                        callback: (token: string) => {
+                            setTurnstileToken(token);
+                            setErrors(prev => {
+                                const { turnstile, ...rest } = prev;
+                                return rest;
+                            });
+                        },
+                        'error-callback': () => {
+                            setTurnstileToken(null);
+                            setErrors(prev => ({
+                                ...prev,
+                                turnstile: 'Грешка при валидацията. Моля опитайте отново.'
+                            }));
+                        },
+                        'expired-callback': () => {
+                            setTurnstileToken(null);
+                            setErrors(prev => ({
+                                ...prev,
+                                turnstile: 'Валидацията изтече. Моля опитайте отново.'
+                            }));
+                        },
+                        theme: 'light',
+                        size: 'normal',
+                        language: 'bg'
+                    });
+                } catch (error) {
+                    console.error('Error rendering Turnstile:', error);
+                }
+            }
+        };
+
+        // Wait for Turnstile script to load
+        if (window.turnstile) {
+            renderTurnstile();
+        } else {
+            const checkTurnstile = setInterval(() => {
+                if (window.turnstile) {
+                    renderTurnstile();
+                    clearInterval(checkTurnstile);
+                }
+            }, 100);
+
+            return () => clearInterval(checkTurnstile);
+        }
+    }, [TURNSTILE_SITE_KEY, isLocalDev]);
+
+    // Load persisted form data from localStorage
+    const loadPersistedFormData = (): Partial<FormData> | null => {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                return JSON.parse(stored);
+            }
+        } catch (error) {
+            console.error('Error loading persisted form data:', error);
+        }
+        return null;
+    };
+
+    // Save form data to localStorage
+    const saveFormDataToStorage = (data: FormData) => {
+        try {
+            // Only save if form has some data
+            const hasData = data.firstName || data.lastName || data.email || data.phone || data.egn;
+            if (hasData) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } else {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        } catch (error) {
+            console.error('Error saving form data to localStorage:', error);
+        }
+    };
+
+    // Clear persisted form data
+    const clearPersistedFormData = () => {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (error) {
+            console.error('Error clearing persisted form data:', error);
+        }
+    };
+
+    // Generate referral code on mount
+    useEffect(() => {
+        const code = generateReferralCode();
+        setReferralCode(code);
+    }, []);
+
+    // Fetch initial data
+    useEffect(() => {
+        fetchRegions();
+        fetchCountries();
+    }, []);
+
+    // Load persisted form data after regions and countries are loaded
+    useEffect(() => {
+        if (regions.length > 0 && countries.length > 0 && !hasRestoredPersistedData.current) {
+            const persistedData = loadPersistedFormData();
+            if (persistedData) {
+                hasRestoredPersistedData.current = true;
+                isRestoringData.current = true;
+
+                // Restore form data, matching region/municipality/settlement objects with loaded data
+                const restoredData: Partial<FormData> = { ...persistedData };
+
+                // Match region
+                if (persistedData.region?.code) {
+                    const matchedRegion = regions.find(r => r.code === persistedData.region?.code);
+                    if (matchedRegion) {
+                        restoredData.region = matchedRegion;
+                        // Match municipality if region has municipalities
+                        if (persistedData.municipality?.code && matchedRegion.municipalities) {
+                            const matchedMunicipality = matchedRegion.municipalities.find(
+                                m => m.code === persistedData.municipality?.code
+                            );
+                            if (matchedMunicipality) {
+                                restoredData.municipality = matchedMunicipality;
+                            }
+                        }
+                    }
+                }
+
+                // Match country
+                if (persistedData.country?.code) {
+                    const matchedCountry = countries.find(c => c.code === persistedData.country?.code);
+                    if (matchedCountry) {
+                        restoredData.country = matchedCountry;
+                    }
+                }
+
+                setFormData(prev => ({ ...prev, ...restoredData }));
+
+                // Trigger settlement fetch if municipality is restored
+                // Fetch settlements immediately with persisted ID to ensure proper restoration
+                if (restoredData.municipality && restoredData.region && restoredData.region.code !== ABROAD_ID) {
+                    const persistedSettlementId = persistedData.settlement && typeof persistedData.settlement === 'object'
+                        ? persistedData.settlement.id
+                        : undefined;
+                    const persistedPollingStationId = persistedData.pollingStation && typeof persistedData.pollingStation === 'object'
+                        ? persistedData.pollingStation.id
+                        : undefined;
+
+                    // Fetch settlements immediately (don't wait for useEffect)
+                    // Pass region code explicitly to avoid timing issues with state updates
+                    fetchSettlements(restoredData.municipality.code, persistedSettlementId, restoredData.region.code).then(() => {
+                        // After settlements are loaded and matched, fetch polling stations if needed
+                        if (persistedPollingStationId && persistedSettlementId) {
+                            // Use the persisted settlement ID directly
+                            setTimeout(() => {
+                                fetchPollingStations(persistedSettlementId.toString(), persistedPollingStationId);
+                            }, 100);
+                        }
+                        // Mark restoration as complete
+                        isRestoringData.current = false;
+                    });
+                } else {
+                    isRestoringData.current = false;
+                }
+            }
+        }
+    }, [regions, countries]);
+
+    // Scroll to success message when it appears (only once)
+    useEffect(() => {
+        if (isSubmitted && submittedReferralCode && !hasScrolledToSuccess.current) {
+            // Use setTimeout to ensure DOM has updated and success message is rendered
+            const timer = setTimeout(() => {
+                if (hasScrolledToSuccess.current) return; // Prevent double scroll
+
+                try {
+                    if (successMessageRef.current) {
+                        hasScrolledToSuccess.current = true;
+
+                        // Find the scrollable parent container (form wrapper)
+                        const formContainer = successMessageRef.current.closest('.volunteer-registration-form');
+
+                        if (formContainer) {
+                            // Scroll the form container to show the success message
+                            const elementTop = successMessageRef.current.getBoundingClientRect().top;
+                            const containerTop = formContainer.getBoundingClientRect().top;
+                            const scrollOffset = elementTop - containerTop + formContainer.scrollTop - 20; // 20px padding from top
+
+                            formContainer.scrollTo({
+                                top: scrollOffset,
+                                behavior: 'smooth'
+                            });
+                        } else {
+                            // Fallback: use scrollIntoView only if container not found
+                            successMessageRef.current.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'nearest',
+                                inline: 'nearest'
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // Ignore scroll errors (e.g., cross-origin iframe restrictions)
+                }
+            }, 200);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isSubmitted, submittedReferralCode]);
+
+    // Real-time validation with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            validateForm(false); // Validate without setting all as touched
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [formData]);
+
+    // Save form data to localStorage on change (debounced)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            saveFormDataToStorage(formData);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [formData]);
+
+    // Fetch regions from API
+    const fetchRegions = async () => {
+        try {
+            setLoading(true);
+            const data = await dataApi.get<never, Region[]>('election_regions');
+            setRegions(data);
+            if (data.length === 1) {
+                setFormData(prev => ({ ...prev, region: data[0] }));
+            }
+        } catch (error) {
+            console.error('Error fetching regions:', error);
+            setErrors(prev => ({ ...prev, api: 'Грешка при зареждане на данните' }));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch countries
+    const fetchCountries = async () => {
+        const countriesList: Country[] = await dataApi.get<never, Country[]>('countries');
+        // sort by name
+        countriesList.sort((a, b) => a.name.localeCompare(b.name, 'bg'));
+        setCountries(countriesList);
+        if (countriesList.length === 1) {
+            setFormData(prev => ({ ...prev, country: countriesList[0] }));
+        }
+    };
+
+    // Update municipalities when region changes
+    useEffect(() => {
+        if (formData.region && formData.region.code !== ABROAD_ID) {
+            if (formData.region.municipalities) {
+                setMunicipalities(formData.region.municipalities);
+                if (formData.region.municipalities.length === 1) {
+                    setFormData(prev => ({ ...prev, municipality: formData.region!.municipalities![0] }));
+                }
+            } else {
+                setMunicipalities([]);
+            }
+        } else {
+            setMunicipalities([]);
+            setSettlements([]);
+            setPollingStations([]);
+        }
+
+    }, [formData.region]);
+
+    // Fetch settlements when municipality changes
+    useEffect(() => {
+        // Skip if we're currently restoring persisted data
+        if (isRestoringData.current) {
+            return;
+        }
+
+        if (formData.municipality && formData.region && formData.region.code !== ABROAD_ID) {
+            // Check if we have persisted settlement data to restore
+            const persistedData = loadPersistedFormData();
+            const persistedSettlementId = persistedData?.settlement && typeof persistedData.settlement === 'object'
+                ? persistedData.settlement.id
+                : undefined;
+
+            fetchSettlements(formData.municipality.code, persistedSettlementId);
+        } else if (formData.region?.code !== ABROAD_ID) {
+            setSettlements([]);
+        }
+    }, [formData.municipality]);
+
+    const fetchSettlements = async (municipalityId: string, persistedSettlementId?: number, regionCode?: string) => {
+        try {
+            const regionId = regionCode || formData.region?.code;
+            const data = await dataApi.get<never, Settlement[]>(`towns?country=${BULGARIA_ID}&election_region=${regionId}&municipality=${municipalityId}`);
+            setSettlements(data);
+
+            if (data.length === 1) {
+                const settlement = data[0];
+                const cityRegion = settlement.cityRegions.length === 1 ? settlement.cityRegions[0] : null;
+                setFormData(prev => ({
+                    ...prev,
+                    settlement,
+                    cityRegion
+                }));
+            } else if (persistedSettlementId) {
+                // Match persisted settlement
+                const matchedSettlement = data.find(s => s.id === persistedSettlementId);
+                if (matchedSettlement) {
+                    const persistedData = loadPersistedFormData();
+                    let matchedCityRegion = null;
+                    if (persistedData?.cityRegion?.name && matchedSettlement.cityRegions.length > 0) {
+                        matchedCityRegion = matchedSettlement.cityRegions.find(
+                            cr => cr.name === persistedData.cityRegion?.name
+                        ) || null;
+                    }
+                    setFormData(prev => ({
+                        ...prev,
+                        settlement: matchedSettlement,
+                        cityRegion: matchedCityRegion
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching settlements:', error);
+        }
+    };
+
+    // Fetch PollingStations when settlement changes
+    useEffect(() => {
+        if (formData.municipality && formData.region && formData.settlement && formData.region.code !== ABROAD_ID) {
+            fetchPollingStations(formData.settlement.id.toString());
+        } else if (formData.region?.code !== ABROAD_ID) {
+            setPollingStations([]);
+        }
+    }, [formData.settlement, formData.cityRegion]);
+
+    // Normalize address formatting: ensure proper spacing
+    const normalizeAddress = (address: string): string => {
+        if (!address) return address;
+
+        // First, normalize quotes by tracking quote state
+        let insideQuotes = false;
+        let normalized = '';
+
+        for (let i = 0; i < address.length; i++) {
+            const char = address[i];
+            const prevChar = i > 0 ? address[i - 1] : '';
+            const nextChar = i < address.length - 1 ? address[i + 1] : '';
+
+            if (char === '"') {
+                // Check if this is an opening quote (we're not inside quotes yet)
+                if (!insideQuotes) {
+                    // Opening quote - add space before if needed
+                    if (prevChar && prevChar !== ' ' && prevChar !== '(') {
+                        normalized += ' ';
+                    }
+                    normalized += char;
+                    insideQuotes = true;
+                } else {
+                    // Closing quote - add space after if needed
+                    normalized += char;
+                    if (nextChar && nextChar !== ' ' && nextChar !== ',' && nextChar !== '.') {
+                        normalized += ' ';
+                    }
+                    insideQuotes = false;
+                }
+            } else {
+                normalized += char;
+            }
+        }
+
+        return normalized
+            // Add space after comma if missing
+            .replace(/,([^\s])/g, ', $1')
+            // Add space after dot if missing (but not if followed by digit, comma, dot, or space)
+            .replace(/\.([^\s\d,\.])/g, '. $1')
+            // Clean up multiple spaces
+            .replace(/\s+/g, ' ')
+            .trim();
+    };
+
+    // Helper function to compare already-stripped addresses with tolerance for minor differences
+    const addressesMatchStripped = (stripped1: string, stripped2: string): boolean => {
+        // If exact match, they match
+        if (stripped1 === stripped2) return true;
+
+        // Quick length check - if difference is more than 2 characters, can't match
+        const lenDiff = Math.abs(stripped1.length - stripped2.length);
+        if (lenDiff > 2) return false;
+
+        // Use optimized Levenshtein distance with early exit
+        return levenshteinDistanceOptimized(stripped1, stripped2) <= 2;
+    };
+
+    // Optimized Levenshtein distance with early exit when distance > 2
+    const levenshteinDistanceOptimized = (str1: string, str2: string): number => {
+        const len1 = str1.length;
+        const len2 = str2.length;
+
+        // Use only two rows instead of full matrix (space optimization)
+        let prevRow = Array(len2 + 1).fill(0).map((_, i) => i);
+        let currRow = Array(len2 + 1).fill(0);
+
+        for (let i = 1; i <= len1; i++) {
+            currRow[0] = i;
+            let minInRow = i;
+
+            for (let j = 1; j <= len2; j++) {
+                const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+                currRow[j] = Math.min(
+                    prevRow[j] + 1,        // deletion
+                    currRow[j - 1] + 1,    // insertion
+                    prevRow[j - 1] + cost  // substitution
+                );
+                minInRow = Math.min(minInRow, currRow[j]);
+            }
+
+            // Early exit: if minimum in current row is > 2, distance will be > 2
+            if (minInRow > 2) return 3;
+
+            // Swap rows
+            [prevRow, currRow] = [currRow, prevRow];
+        }
+
+        return prevRow[len2];
+    };
+
+    const fetchPollingStations = async (settlementId: string, persistedPollingStationId?: string) => {
+        try {
+            const data = await dataApi.get<never, PollingStation[]>(`sections?town=${settlementId}${formData.cityRegion ? `&city_region=${formData.cityRegion.code}` : ''}`);
+
+            // Filter duplicates by place (normalized with tolerance for minor differences)
+            // Compare stripped addresses, but keep original addresses for display/submission
+            const stripWhitespace = (s: string) => s.replace(/\s+/g, '');
+            const uniqueData: PollingStation[] = [];
+            const processedStripped = new Set<string>();
+
+            for (const station of data) {
+                const strippedPlace = stripWhitespace(station.place);
+
+                // Check if we've already seen a similar address (using stripped comparison)
+                let matched = false;
+                for (const seenStripped of processedStripped) {
+                    if (addressesMatchStripped(seenStripped, strippedPlace)) {
+                        matched = true;
+                        break;
+                    }
+                }
+
+                if (!matched) {
+                    // This is a new unique address - normalize it and add it
+                    const normalizedStation = {
+                        ...station,
+                        place: normalizeAddress(station.place)
+                    };
+                    uniqueData.push(normalizedStation);
+                    processedStripped.add(strippedPlace);
+                }
+            }
+
+            setPollingStations(uniqueData);
+
+            if (uniqueData.length === 1) {
+                setFormData(prev => ({
+                    ...prev,
+                    pollingStation: uniqueData[0],
+                    // Auto-select travel within settlement when only one station (only if not already set by user)
+                    travelAbility: prev.travelAbility === 'no' ? 'settlement' : prev.travelAbility
+                }));
+            } else if (persistedPollingStationId) {
+                // Match persisted polling station
+                const matchedStation = uniqueData.find(s => s.id === persistedPollingStationId);
+                if (matchedStation) {
+                    setFormData(prev => ({ ...prev, pollingStation: matchedStation }));
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching settlements:', error);
+        }
+    };
+
+
+    // Master validation function
+    const validateForm = (setAllTouched = false) => {
+        const newErrors: FormErrors = {};
+
+        if (!formData.firstName.trim()) {
+            newErrors.firstName = 'Полето е задължително';
+        } else if (!validateCyrillic(formData.firstName)) {
+            newErrors.firstName = 'Името трябва да е на кирилица';
+        }
+
+
+        if (!formData.middleName.trim()) {
+            newErrors.middleName = 'Полето е задължително';
+        } else if (!validateCyrillic(formData.middleName)) {
+            newErrors.middleName = 'Презимето трябва да е на кирилица';
+        }
+
+        if (!formData.lastName.trim()) {
+            newErrors.lastName = 'Полето е задължително';
+        } else if (!validateCyrillic(formData.lastName)) {
+            newErrors.lastName = 'Фамилията трябва да е на кирилица';
+        }
+
+        if (!formData.email.trim()) {
+            newErrors.email = 'Полето е задължително';
+        } else if (!validateEmail(formData.email)) {
+            newErrors.email = 'Невалиден имейл адрес';
+        }
+
+        if (!formData.phone) {
+            newErrors.phone = 'Полето е задължително';
+        } else if (!validatePhone(formData.phone)) {
+            newErrors.phone = 'Невалиден мобилен номер';
+        }
+
+        const egnVal = validateEGN(formData.egn);
+        if (!egnVal.valid) {
+            newErrors.egn = egnVal.message || 'Невалиден ЕГН';
+        }
+
+        if (!formData.region) newErrors.region = 'Полето е задължително';
+
+        if (formData.region && formData.region.code !== ABROAD_ID) {
+            if (!formData.municipality) newErrors.municipality = 'Полето е задължително';
+            if (!formData.settlement) newErrors.settlement = 'Полето е задължително';
+        }
+
+        if (formData.region?.code === ABROAD_ID) {
+            if (!formData.country) newErrors.country = 'Полето е задължително';
+            if (!formData.settlement?.name.trim()) newErrors.settlement = 'Полето е задължително';
+        }
+
+        if (!formData.gdprConsent) {
+            newErrors.gdprConsent = 'Трябва да приемете условията';
+        }
+
+        // Turnstile validation (skip in local development)
+        if (!isLocalDev && !turnstileToken) {
+            newErrors.turnstile = 'Моля потвърдете, че не сте робот';
+        }
+
+        setErrors(newErrors);
+
+        if (setAllTouched) {
+            const allTouched: TouchedFields = {};
+            Object.keys(formData).forEach(key => allTouched[key] = true);
+            allTouched.turnstile = true;
+            setTouched(allTouched);
+        }
+
+        return Object.keys(newErrors).length === 0;
+    };
+
+    // Events
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        let finalValue: any = value;
+
+        if (type === 'checkbox') {
+            finalValue = (e.target as HTMLInputElement).checked;
+        }
+
+        if (name === 'travelAbility') {
+            const hierarchy = ['no', 'settlement', 'municipality', 'region', 'risky_distant'];
+            const targetLevel = value;
+
+            if (targetLevel === 'no') {
+                setFormData(prev => ({ ...prev, travelAbility: 'no' }));
+            } else if (targetLevel === formData.travelAbility) {
+                // If clicking the current highest level, move one step down
+                const currentIndex = hierarchy.indexOf(targetLevel);
+                const prevLevel = hierarchy[currentIndex - 1] || 'no';
+                setFormData(prev => ({ ...prev, travelAbility: prevLevel as any }));
+            } else {
+                setFormData(prev => ({ ...prev, travelAbility: targetLevel as any }));
+            }
+            return;
+        }
+
+        if (name === 'phone') {
+            finalValue = value.replace(/[^\d+]/g, '');
+        }
+
+        if (name === 'egn') {
+            finalValue = value.replace(/[^\d]/g, '');
+        }
+
+        if (name === 'region') {
+            const region = regions.find(r => r.code === value) || null;
+            setFormData(prev => ({
+                ...prev,
+                region,
+                municipality: null,
+                settlement: null,
+                pollingStation: null,
+                travelAbility: 'no' // Reset travel ability when location changes
+            }));
+            setTouched(prev => ({
+                ...prev,
+                municipality: false,
+                settlement: false,
+                cityRegion: false,
+                pollingStation: false
+            }));
+        } else if (name === 'municipality') {
+            const municipality = municipalities.find(m => m.code === value) || null;
+            setFormData(prev => ({
+                ...prev,
+                municipality,
+                settlement: null,
+                pollingStation: null,
+                travelAbility: 'no' // Reset travel ability when location changes
+            }));
+            setTouched(prev => ({
+                ...prev,
+                settlement: false,
+                cityRegion: false,
+                pollingStation: false
+            }));
+        } else if (name === 'country') {
+            const country = countries.find(c => c.code === value) || null;
+            setFormData(prev => ({
+                ...prev,
+                country,
+                travelAbility: 'no' // Reset travel ability when location changes
+            }));
+        } else if (name === 'settlement') {
+            if (isAbroad) {
+                setFormData(prev => ({
+                    ...prev,
+                    settlement: { id: 0, name: value, cityRegions: [] },
+                    pollingStation: null,
+                    travelAbility: 'no' // Reset travel ability when location changes
+                }));
+            } else {
+                const settlement = settlements.find(s => s.id.toString() === value) || null;
+                const cityRegion = settlement && settlement.cityRegions.length === 1 ? settlement.cityRegions[0] : null;
+                setFormData(prev => ({
+                    ...prev,
+                    settlement,
+                    cityRegion,
+                    pollingStation: null,
+                    travelAbility: 'no' // Reset travel ability when location changes
+                }));
+                setTouched(prev => ({
+                    ...prev,
+                    cityRegion: false,
+                    pollingStation: false
+                }));
+            }
+        } else if (name === 'cityRegion') {
+            const cityRegion = (formData.settlement?.cityRegions || []).find(cr => cr.name === value) || null;
+            setFormData(prev => ({
+                ...prev,
+                cityRegion,
+                pollingStation: null,
+                travelAbility: 'no' // Reset travel ability when location changes
+            }));
+        } else if (name === 'pollingStation') {
+            if (isAbroad) {
+                // For abroad, normalize the manually entered address
+                const normalizedAddress = normalizeAddress(finalValue);
+                setFormData(prev => ({ ...prev, pollingStation: normalizedAddress }));
+            } else {
+                // For Bulgaria, find the selected polling station
+                const pollingStation = pollingStations.find(ps => ps.id.toString() === value) || null;
+                setFormData(prev => ({ ...prev, pollingStation }));
+            }
+        } else {
+            setFormData(prev => ({ ...prev, [name]: finalValue }));
+        }
+
+        // Clear error immediately when user starts typing/checking to avoid "flashing" or stale errors
+        setErrors(prev => ({ ...prev, [name]: '' }));
+
+        // For GDPR consent, clear error immediately when checked
+        if (name === 'gdprConsent' && finalValue === true) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.gdprConsent;
+                return newErrors;
+            });
+        }
+    };
+
+    const handleBlur = (name: string) => {
+        setTouched(prev => ({ ...prev, [name]: true }));
+        // Save to localStorage immediately on blur
+        saveFormDataToStorage(formData);
+    };
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+
+        if (!validateForm(true)) {
+            return;
+        }
+
+        try {
+            // Get referral code from URL if present
+            const referredBy = getReferralFromUrl();
+
+            // Prepare submission data - include turnstile token and referral codes
+            // Normalize polling station address if it's a string
+            const normalizedPollingStation = typeof formData.pollingStation === 'string'
+                ? normalizeAddress(formData.pollingStation)
+                : formData.pollingStation
+                    ? { ...formData.pollingStation, place: normalizeAddress(formData.pollingStation.place) }
+                    : formData.pollingStation;
+
+            const submissionData = {
+                ...formData,
+                pollingStation: normalizedPollingStation,
+                turnstileToken: isLocalDev ? 'local-dev-token' : turnstileToken,
+                referralCode: referralCode,
+                referredBy: referredBy || null
+            };
+
+            // Get submission endpoint from environment variable, default to /submit
+            const submitEndpoint = (typeof process !== 'undefined' && process.env?.VITE_SUBMIT_ENDPOINT) || 'submit';
+            await submitApi.post(submitEndpoint, submissionData);
+
+            // Store the referral code that was submitted for success message
+            setSubmittedReferralCode(referralCode);
+            setIsSubmitted(true);
+            // Reset scroll flag for new submission
+            hasScrolledToSuccess.current = false;
+
+            // Clear persisted form data on successful submission
+            clearPersistedFormData();
+            hasRestoredPersistedData.current = false;
+
+            // Generate new referral code for next submission
+            setReferralCode(generateReferralCode());
+
+            // Reset Turnstile widget (skip in local development)
+            if (!isLocalDev) {
+                if (window.turnstile && widgetIdRef.current) {
+                    window.turnstile.reset(widgetIdRef.current);
+                }
+                setTurnstileToken(null);
+            } else {
+                // Re-set token for local dev
+                setTurnstileToken('local-dev-token');
+            }
+
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            setErrors(prev => ({ ...prev, submit: 'Грешка при подаване на формата' }));
+
+
+            // Reset Turnstile on error (skip in local development)
+            if (!isLocalDev) {
+                if (window.turnstile && widgetIdRef.current) {
+                    window.turnstile.reset(widgetIdRef.current);
+                }
+                setTurnstileToken(null);
+            } else {
+                // Re-set token for local dev
+                setTurnstileToken('local-dev-token');
+            }
+        }
+    };
+
+    if (loading) {
+        return <div className="loading">Зареждане...</div>;
+    }
+
+    // Show success message after submission
+    if (isSubmitted && submittedReferralCode) {
+        const formUrl = (typeof process !== 'undefined' && process.env?.VITE_FORM_URL) || 'https://tibroish.bg/signup';
+        const shareUrl = `${formUrl}?ref=${submittedReferralCode}`;
+
+        return (
+            <div className="volunteer-registration-form">
+                <div ref={successMessageRef} className="success-message" style={{
+                    padding: '2rem',
+                    textAlign: 'center',
+                    backgroundColor: '#f0fdfa',
+                    borderRadius: '8px',
+                    border: '2px solid #14b8a6'
+                }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem', color: '#14b8a6' }}>✓</div>
+                    <h2 style={{ color: '#0d9488', marginBottom: '1rem' }}>Успешна регистрация!</h2>
+                    <p style={{ marginBottom: '1.5rem', fontSize: '1.1rem', color: '#334155' }}>
+                        Благодарим ви за регистрацията!
+                        <br />
+                        Ще се свържем с вас по телефона до няколко дни за следващите стъпки.
+                    </p>
+                    <div style={{
+                        backgroundColor: 'white',
+                        padding: '1rem',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        marginBottom: '1rem'
+                    }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.9rem', color: '#475569' }}>
+                            Сподели с други, които да се запишат:
+                        </label>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input
+                                type="text"
+                                readOnly
+                                value={shareUrl}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.75rem',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '4px',
+                                    fontSize: '0.9rem',
+                                    fontFamily: 'monospace',
+                                    backgroundColor: '#f8fafc'
+                                }}
+                                onClick={(e) => (e.target as HTMLInputElement).select()}
+                            />
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    try {
+                                        await navigator.clipboard.writeText(shareUrl);
+                                        setCopySuccess(true);
+                                        setTimeout(() => setCopySuccess(false), 2000);
+                                    } catch (e) {
+                                        // Fallback for older browsers
+                                        const input = document.createElement('input');
+                                        input.value = shareUrl;
+                                        document.body.appendChild(input);
+                                        input.select();
+                                        document.execCommand('copy');
+                                        document.body.removeChild(input);
+                                        setCopySuccess(true);
+                                        setTimeout(() => setCopySuccess(false), 2000);
+                                    }
+                                }}
+                                style={{
+                                    padding: '0.75rem 1.5rem',
+                                    backgroundColor: copySuccess ? '#10b981' : '#14b8a6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    transition: 'background-color 0.2s',
+                                    minWidth: '100px'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!copySuccess) {
+                                        e.currentTarget.style.backgroundColor = '#0d9488';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!copySuccess) {
+                                        e.currentTarget.style.backgroundColor = '#14b8a6';
+                                    }
+                                }}
+                            >
+                                {copySuccess ? 'Копирано!' : 'Копирай'}
+                            </button>
+                        </div>
+                        {copySuccess && (
+                            <div style={{
+                                marginTop: '0.5rem',
+                                fontSize: '0.85rem',
+                                color: '#10b981',
+                                textAlign: 'center'
+                            }}>
+                                ✓ Копирано
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Helper for rendering form groups with tooltips
+    const renderField = (
+        name: keyof FormData,
+        label: string,
+        type: string = 'text',
+        options: { note?: string, required?: boolean, placeholder?: string, items?: any[], keyField?: string, labelField?: string, disabled?: boolean, pattern?: string, maxLength?: number, autoComplete?: string } = {}
+    ) => {
+        const error = errors[name];
+        const isTouched = touched[name];
+        const hasError = !!error && isTouched;
+
+        const getValue = () => {
+            const val = formData[name];
+            if (val === null || val === undefined) return '';
+            if (typeof val === 'string') return val;
+            if (typeof val === 'object') {
+                if ('code' in val) return (val as any).code;
+                if ('id' in val) return (val as any).id.toString();
+                if ('name' in val) return (val as any).name; // Fallback for objects like Settlement in abroad case
+            }
+            return val.toString();
+        };
+
+        const commonProps = {
+            id: name,
+            name: name,
+            value: getValue(),
+            onChange: handleChange,
+            onBlur: () => handleBlur(name),
+            className: `${hasError ? 'error' : ''}`,
+            required: options.required,
+            ...(options.autoComplete !== undefined && { autoComplete: options.autoComplete })
+        };
+
+        return (
+            <div className={`form-group ${hasError ? 'has-error' : ''}`}>
+                <label htmlFor={name}>
+                    {label} {options.required && <span className="required">*</span>}
+                </label>
+
+                <div className="input-wrapper">
+                    {type === 'select' ? (
+                        <select {...commonProps} disabled={options.disabled}>
+                            <option value="">Изберете...</option>
+                            {(options.items || []).map(item => (
+                                <option key={item[options.keyField || 'id']} value={item[options.keyField || 'id']}>
+                                    {item[options.labelField || 'name']}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <input
+                            type={type}
+                            placeholder={options.placeholder}
+                            pattern={options.pattern}
+                            maxLength={options.maxLength}
+                            {...commonProps}
+                        />
+                    )}
+
+                    {hasError && options.note && (
+                        <div className="validation-tooltip">{options.note}</div>
+                    )}
+                    {hasError && !options.note && (
+                        <div className="validation-tooltip">{error}</div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="volunteer-registration-form">
+            <form onSubmit={handleSubmit} autoComplete="on">
+                <div className="form-section">
+                    {renderField('firstName', 'Име', 'text', {
+                        required: true,
+                        note: 'Името трябва да е на кирилица',
+                        autoComplete: 'given-name'
+                    })}
+                    {renderField('middleName', 'Презиме', 'text', {
+                        required: true,
+                        note: 'Презимето трябва да е на кирилица',
+                        autoComplete: 'additional-name'
+                    })}
+                    {renderField('lastName', 'Фамилия', 'text', {
+                        required: true,
+                        note: 'Фамилията трябва да е на кирилица',
+                        autoComplete: 'family-name'
+                    })}
+                    {renderField('email', 'Имейл', 'email', {
+                        required: true,
+                        pattern: '[^\\s@]+@[^\\s@]+\\.[^\\s@]+',
+                        autoComplete: 'email'
+                    })}
+                    {renderField('phone', 'Телефонен номер', 'tel', {
+                        required: true,
+                        placeholder: '+359xxxxxxxx или 08xxxxxxxx/098xxxxxxxx',
+                        note: 'Мобилен телефон, не стационарен',
+                        autoComplete: 'tel'
+                    })}
+                    {renderField('egn', 'ЕГН', 'text', {
+                        required: true,
+                        maxLength: 10,
+                        autoComplete: 'off'
+                    })}
+                </div>
+
+                <div className="form-section">
+                    {renderField('region', 'Област', 'select', {
+                        required: true,
+                        items: regions,
+                        keyField: 'code',
+                        autoComplete: 'off'
+                    })}
+
+                    {!isAbroad && renderField('municipality', 'Община / Район', 'select', {
+                        required: true,
+                        items: municipalities,
+                        keyField: 'code',
+                        disabled: !formData.region,
+                        autoComplete: 'off'
+                    })}
+
+                    {isAbroad && renderField('country', 'Държава', 'select', {
+                        required: true,
+                        items: countries,
+                        keyField: 'code',
+                        autoComplete: 'off'
+                    })}
+
+                    <div className={`form-group ${errors.settlement && touched.settlement ? 'has-error' : ''}`}>
+                        <label htmlFor="settlement">
+                            Населено място <span className="required">*</span>
+                        </label>
+                        <div className="input-wrapper">
+                            {isAbroad ? (
+                                <input
+                                    type="text"
+                                    id="settlement"
+                                    name="settlement"
+                                    value={formData.settlement?.name || ''}
+                                    onChange={handleChange}
+                                    onBlur={() => handleBlur('settlement')}
+                                    className={errors.settlement && touched.settlement ? 'error' : ''}
+                                    autoComplete="off"
+                                    required
+                                />
+                            ) : (
+                                <select
+                                    id="settlement"
+                                    name="settlement"
+                                    value={formData.settlement?.id || ''}
+                                    onChange={handleChange}
+                                    onBlur={() => handleBlur('settlement')}
+                                    className={errors.settlement && touched.settlement ? 'error' : ''}
+                                    disabled={!formData.municipality}
+                                    autoComplete="off"
+                                    required
+                                >
+                                    <option value="">Изберете...</option>
+                                    {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            )}
+                            {errors.settlement && touched.settlement && (
+                                <div className="validation-tooltip">{errors.settlement}</div>
+                            )}
+                        </div>
+                    </div>
+
+
+                    {formData.settlement?.cityRegions && formData.settlement.cityRegions.length > 0 && !isAbroad && (
+                        <div className={`form-group ${errors.cityRegion && touched.cityRegion ? 'has-error' : ''}`}>
+                            <label htmlFor="cityRegion">
+                                Район <span className="required">*</span>
+                            </label>
+                            <div className="input-wrapper">
+                                <select
+                                    id="cityRegion"
+                                    name="cityRegion"
+                                    value={formData.cityRegion?.name || ''}
+                                    onChange={handleChange}
+                                    onBlur={() => handleBlur('cityRegion')}
+                                    className={errors.cityRegion && touched.cityRegion ? 'error' : ''}
+                                    autoComplete="off"
+                                    required
+                                >
+                                    <option value="">Изберете...</option>
+                                    {formData.settlement?.cityRegions.map(s => (
+                                        <option key={s.name} value={s.name}>{s.name}</option>
+                                    ))}
+                                </select>
+                                {errors.cityRegion && touched.cityRegion && (
+                                    <div className="validation-tooltip">{errors.cityRegion}</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="form-group">
+                        <label htmlFor="pollingStation">Адрес на секцията където гласувате</label>
+                        <div className="input-wrapper">
+                            {isAbroad ? (
+                                <input
+                                    type="text"
+                                    id="pollingStation"
+                                    name="pollingStation"
+                                    value={typeof formData.pollingStation === 'string' ? formData.pollingStation : formData.pollingStation?.place || ''}
+                                    onChange={handleChange}
+                                    autoComplete="off"
+                                />
+                            ) : (
+                                <select
+                                    id="pollingStation"
+                                    name="pollingStation"
+                                    value={typeof formData.pollingStation === 'object' ? formData.pollingStation?.id || '' : ''}
+                                    onChange={handleChange}
+                                    disabled={!formData.settlement}
+                                    autoComplete="off"
+                                >
+                                    <option value="">Изберете...</option>
+                                    {[...pollingStations].sort((a, b) => {
+                                        // Extract leading numbers for numeric comparison
+                                        const numMatchA = a.place.match(/^\d+/);
+                                        const numMatchB = b.place.match(/^\d+/);
+
+                                        if (numMatchA && numMatchB) {
+                                            // Both start with numbers - compare numerically
+                                            const numA = parseInt(numMatchA[0], 10);
+                                            const numB = parseInt(numMatchB[0], 10);
+                                            if (numA !== numB) {
+                                                return numA - numB;
+                                            }
+                                            // If numbers are equal, compare the rest alphabetically
+                                            return a.place.localeCompare(b.place, 'bg');
+                                        } else if (numMatchA) {
+                                            // Only A starts with number - numbers come first
+                                            return -1;
+                                        } else if (numMatchB) {
+                                            // Only B starts with number - numbers come first
+                                            return 1;
+                                        } else {
+                                            // Neither starts with number - alphabetical comparison
+                                            return a.place.localeCompare(b.place, 'bg');
+                                        }
+                                    }).map(s => <option key={s.id} value={s.id}>{s.place}</option>)}
+                                </select>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="form-section">
+                    <div className="form-group">
+                        <label>Възможност да пътувате</label>
+                        <div className="radio-group">
+                            {(() => {
+                                const isAbroad = formData.region?.code === ABROAD_ID;
+                                const travelOptions = isAbroad
+                                    ? [
+                                        { val: 'no', lab: 'Не' },
+                                        { 
+                                            val: 'settlement', 
+                                            lab: formData.settlement?.name 
+                                                ? `В рамките на ${formData.settlement.name}` 
+                                                : 'В рамките на града'
+                                        },
+                                        { 
+                                            val: 'region', 
+                                            lab: formData.country?.name 
+                                                ? `В рамките на ${formData.country.name}` 
+                                                : 'В рамките на държавата'
+                                        },
+                                        { val: 'risky_distant', lab: 'Рискови секции на далечно разстояние' }
+                                    ]
+                                    : [
+                                        { val: 'no', lab: 'Не' },
+                                        { 
+                                            val: 'settlement', 
+                                            lab: formData.settlement?.name 
+                                                ? `В рамките на ${formData.settlement.name}` 
+                                                : 'В рамките на населеното място'
+                                        },
+                                        { 
+                                            val: 'municipality', 
+                                            lab: formData.municipality?.name 
+                                                ? `В рамките на община ${formData.municipality.name}` 
+                                                : 'В рамките на общината'
+                                        },
+                                        {
+                                            val: 'region',
+                                            lab: formData.region?.name
+                                                ? (formData.region.name.includes('МИР')
+                                                    ? `В рамките на ${formData.region.name}`
+                                                    : `В рамките на област ${formData.region.name}`)
+                                                : 'В рамките на областта'
+                                        },
+                                        { val: 'risky_distant', lab: 'Рискови секции на далечно разстояние' }
+                                    ];
+                                
+                                return travelOptions.map((opt, index, arr) => {
+                                    const hierarchy = isAbroad 
+                                        ? ['no', 'settlement', 'region', 'risky_distant']
+                                        : ['no', 'settlement', 'municipality', 'region', 'risky_distant'];
+                                    const currentIndex = hierarchy.indexOf(opt.val);
+                                    const selectedIndex = hierarchy.indexOf(formData.travelAbility);
+
+                                    let isChecked = false;
+                                    if (opt.val === 'no') {
+                                        isChecked = formData.travelAbility === 'no';
+                                    } else if (formData.travelAbility !== 'no') {
+                                        isChecked = currentIndex <= selectedIndex;
+                                    }
+
+                                    return (
+                                        <label key={opt.val}>
+                                            <input
+                                                type="checkbox"
+                                                name="travelAbility"
+                                                value={opt.val}
+                                                checked={isChecked}
+                                                onChange={handleChange}
+                                            />
+                                            {opt.lab}
+                                        </label>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label>Роля</label>
+                        <div className="radio-group">
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="role"
+                                    value="poll_watcher"
+                                    checked={formData.role === 'poll_watcher'}
+                                    onChange={handleChange}
+                                />
+                                Пазител на вота в секция
+                            </label>
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="role"
+                                    value="video_surveillance"
+                                    checked={formData.role === 'video_surveillance'}
+                                    onChange={handleChange}
+                                />
+                                Видеонаблюдение от вкъщи
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="info-text">
+                        <p><strong>Важно:</strong> Това е доброволен труд без заплащане</p>
+                    </div>
+                </div>
+
+                {!isLocalDev && (
+                    <div className="form-section">
+                        <div className={`form-group ${errors.turnstile && touched.turnstile ? 'has-error' : ''}`}>
+                            <div ref={turnstileRef} className="turnstile-widget"></div>
+                            {errors.turnstile && touched.turnstile && (
+                                <span className="error-message">{errors.turnstile}</span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                <div className="form-section">
+                    <div className={`form-group ${errors.gdprConsent && touched.gdprConsent ? 'has-error' : ''}`}>
+                        <label className="checkbox-label">
+                            <input
+                                type="checkbox"
+                                name="gdprConsent"
+                                checked={formData.gdprConsent}
+                                onChange={handleChange}
+                                onBlur={() => handleBlur('gdprConsent')}
+                            />
+                            <span>
+                                Съгласен/на съм с <a href={privacyUrl} target="_blank">условията за съхраняване на лични данни</a> <span className="required">*</span>
+                            </span>
+                        </label>
+                        {errors.gdprConsent && touched.gdprConsent && (
+                            <span className="error-message">{errors.gdprConsent}</span>
+                        )}
+                    </div>
+                </div>
+
+                {errors.submit && <div className="error-message submit-error">{errors.submit}</div>}
+
+                <button
+                    type="submit"
+                    className="submit-button"
+                    disabled={
+                        !formData.gdprConsent ||
+                        (!isLocalDev && !turnstileToken) ||
+                        // Only check errors for fields that have been touched/blurred
+                        Object.keys(errors).some(key => {
+                            const fieldKey = key as keyof TouchedFields;
+                            return touched[fieldKey] && errors[key];
+                        })
+                    }
+                >
+                    Регистрирай се
+                </button>
+            </form>
+        </div>
+    );
+};
+
+export default SignUpWidget;

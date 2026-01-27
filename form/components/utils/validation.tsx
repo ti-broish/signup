@@ -1,4 +1,7 @@
-export const ELECTION_DATE = new Date('2026-03-29');
+// Get election date from environment variable
+// Available via process.env (Node.js compat in worker, injected in browser)
+const electionDateStr = (typeof process !== 'undefined' && process.env?.VITE_ELECTION_DATE) || '2026-04-19';
+export const ELECTION_DATE = new Date(electionDateStr);
 
 export const validateCyrillic = (text: string) => /^[А-Яа-я\s-]+$/.test(text);
 
