@@ -429,7 +429,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         }
     }, [regions, countries]);
 
-    // Scroll to success message when it appears (only once)
+    // Scroll to top when success message appears (only once)
     useEffect(() => {
         if (isSubmitted && submittedReferralCode && !hasScrolledToSuccess.current) {
             // Use setTimeout to ensure DOM has updated and success message is rendered
@@ -437,33 +437,24 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 if (hasScrolledToSuccess.current) return; // Prevent double scroll
 
                 try {
+                    hasScrolledToSuccess.current = true;
+
+                    // Scroll the success message into view at the top (only current frame)
                     if (successMessageRef.current) {
-                        hasScrolledToSuccess.current = true;
-
-                        // Find the scrollable parent container (form wrapper)
-                        const formContainer = successMessageRef.current.closest('.volunteer-registration-form');
-
-                        if (formContainer) {
-                            // Scroll the form container to show the success message
-                            const elementTop = successMessageRef.current.getBoundingClientRect().top;
-                            const containerTop = formContainer.getBoundingClientRect().top;
-                            const scrollOffset = elementTop - containerTop + formContainer.scrollTop - 20; // 20px padding from top
-
-                            formContainer.scrollTo({
-                                top: scrollOffset,
-                                behavior: 'smooth'
-                            });
-                        } else {
-                            // Fallback: use scrollIntoView only if container not found
-                            successMessageRef.current.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'nearest',
-                                inline: 'nearest'
-                            });
-                        }
+                        successMessageRef.current.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    } else {
+                        // Fallback: scroll current window to top
+                        window.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                        });
                     }
                 } catch (e) {
-                    // Ignore scroll errors (e.g., cross-origin iframe restrictions)
+                    // Ignore scroll errors
+                    console.warn('Scroll to top failed:', e);
                 }
             }, 200);
 
