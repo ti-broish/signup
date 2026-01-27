@@ -61,6 +61,7 @@ interface FormData {
     cityRegion: CityRegion | null;
     pollingStation: PollingStation | string | null;
     travelAbility: 'no' | 'settlement' | 'municipality' | 'region' | 'distant';
+    distantOblasts?: string;
     riskySections: boolean;
     gdprConsent: boolean;
     role: 'poll_watcher' | 'video_surveillance';
@@ -150,6 +151,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         cityRegion: null,
         pollingStation: null,
         travelAbility: 'no',
+        distantOblasts: '',
         riskySections: false,
         gdprConsent: false,
         role: 'poll_watcher'
@@ -852,6 +854,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             newErrors.gdprConsent = 'Трябва да приемете условията';
         }
 
+        // Validate distantOblasts when travelAbility is 'distant' and not abroad
+        if (formData.travelAbility === 'distant' && !isAbroad && !formData.distantOblasts?.trim()) {
+            newErrors.distantOblasts = 'Моля посочете кои области';
+        }
+
         // Turnstile validation (skip in local development)
         if (!isLocalDev && !turnstileToken) {
             newErrors.turnstile = 'Моля потвърдете, че не сте робот';
@@ -881,9 +888,32 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         if (name === 'travelAbility') {
             // Treat the checkboxes as a slider:
             // clicking any level selects exactly that level;
+            // clicking an already-selected level unchecks it (goes back one level)
             // everything above it appears checked, everything below unchecked.
             const targetLevel = value;
-            setFormData(prev => ({ ...prev, travelAbility: targetLevel as any }));
+            const isAbroad = formData.region?.code === ABROAD_ID;
+            const isSofia = formData.region?.name?.includes('София') || formData.region?.name?.includes('Sofia');
+            const hierarchy = isAbroad
+                ? ['no', 'settlement', 'region', 'distant']
+                : (isSofia
+                    ? ['no', 'settlement', 'municipality', 'distant']
+                    : ['no', 'settlement', 'municipality', 'region', 'distant']);
+            
+            const currentIndex = hierarchy.indexOf(formData.travelAbility);
+            const targetIndex = hierarchy.indexOf(targetLevel);
+            
+            // If clicking on the currently selected level, go back one level (or to 'no' if at first level)
+            let newLevel = targetLevel;
+            if (currentIndex === targetIndex && currentIndex > 0) {
+                newLevel = hierarchy[currentIndex - 1];
+            }
+            
+            setFormData(prev => ({ 
+                ...prev, 
+                travelAbility: newLevel as any,
+                // Clear distantOblasts when travelAbility changes away from 'distant'
+                distantOblasts: newLevel === 'distant' ? prev.distantOblasts : ''
+            }));
             return;
         }
 
@@ -903,7 +933,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 municipality: null,
                 settlement: null,
                 pollingStation: null,
-                travelAbility: 'no' // Reset travel ability when location changes
+                travelAbility: 'no', // Reset travel ability when location changes
+                distantOblasts: '' // Reset distant oblasts when location changes
             }));
             setTouched(prev => ({
                 ...prev,
@@ -919,7 +950,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 municipality,
                 settlement: null,
                 pollingStation: null,
-                travelAbility: 'no' // Reset travel ability when location changes
+                travelAbility: 'no', // Reset travel ability when location changes
+                distantOblasts: '' // Reset distant oblasts when location changes
             }));
             setTouched(prev => ({
                 ...prev,
@@ -932,7 +964,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             setFormData(prev => ({
                 ...prev,
                 country,
-                travelAbility: 'no' // Reset travel ability when location changes
+                travelAbility: 'no', // Reset travel ability when location changes
+                distantOblasts: '' // Reset distant oblasts when location changes
             }));
         } else if (name === 'settlement') {
             if (isAbroad) {
@@ -940,7 +973,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                     ...prev,
                     settlement: { id: 0, name: value, cityRegions: [] },
                     pollingStation: null,
-                    travelAbility: 'no' // Reset travel ability when location changes
+                    travelAbility: 'no', // Reset travel ability when location changes
+                    distantOblasts: '' // Reset distant oblasts when location changes
                 }));
             } else {
                 const settlement = settlements.find(s => s.id.toString() === value) || null;
@@ -950,7 +984,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                     settlement,
                     cityRegion,
                     pollingStation: null,
-                    travelAbility: 'no' // Reset travel ability when location changes
+                    travelAbility: 'no', // Reset travel ability when location changes
+                    distantOblasts: '' // Reset distant oblasts when location changes
                 }));
                 setTouched(prev => ({
                     ...prev,
@@ -964,7 +999,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 ...prev,
                 cityRegion,
                 pollingStation: null,
-                travelAbility: 'no' // Reset travel ability when location changes
+                travelAbility: 'no', // Reset travel ability when location changes
+                distantOblasts: '' // Reset distant oblasts when location changes
             }));
         } else if (name === 'pollingStation') {
             if (isAbroad) {
@@ -1036,7 +1072,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 'region': 'В рамките на областта',
                 'distant': isAbroad ? 'В други държави' : 'В други области'
             };
-            const travelAbilityString = travelAbilityMap[formData.travelAbility] || formData.travelAbility;
+            let travelAbilityString = travelAbilityMap[formData.travelAbility] || formData.travelAbility;
+            // Append oblasts information if provided
+            if (formData.travelAbility === 'distant' && !isAbroad && formData.distantOblasts?.trim()) {
+                travelAbilityString += ` (${formData.distantOblasts.trim()})`;
+            }
 
             // Default country to България if not set
             const countryString = formData.country?.name || 'България';
@@ -1055,6 +1095,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 cityRegion: formData.cityRegion?.name || null,
                 pollingStation: pollingStationString,
                 travelAbility: travelAbilityString,
+                distantOblasts: formData.distantOblasts?.trim() || null,
                 riskySections: formData.riskySections,
                 gdprConsent: formData.gdprConsent,
                 role: roleString,
@@ -1536,6 +1577,51 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                                     // Slider behavior: check all options from top (index 0) down to selected level
                                     // 'no' is always checked when any level is selected (it's the base level)
                                     let isChecked = currentIndex <= selectedIndex;
+
+                                    // Special handling for "distant" option - show input inline
+                                    if (opt.val === 'distant' && !isAbroad) {
+                                        return (
+                                            <div key={opt.val} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        name="travelAbility"
+                                                        value={opt.val}
+                                                        checked={isChecked}
+                                                        onChange={handleChange}
+                                                    />
+                                                    <span>{opt.lab}</span>
+                                                </label>
+                                                {formData.travelAbility === 'distant' && (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1', minWidth: '300px', flexWrap: 'wrap' }}>
+                                                        <span style={{ whiteSpace: 'nowrap' }}>Кои области? <span className="required">*</span></span>
+                                                        <input
+                                                            type="text"
+                                                            id="distantOblasts"
+                                                            name="distantOblasts"
+                                                            value={formData.distantOblasts || ''}
+                                                            onChange={handleChange}
+                                                            onBlur={() => handleBlur('distantOblasts')}
+                                                            className={errors.distantOblasts && touched.distantOblasts ? 'error' : ''}
+                                                            placeholder="Например: София, Пловдив, Варна"
+                                                            autoComplete="off"
+                                                            required
+                                                            style={{ 
+                                                                flex: '1', 
+                                                                minWidth: '200px',
+                                                                padding: '0.5rem',
+                                                                border: errors.distantOblasts && touched.distantOblasts ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                                                                borderRadius: '4px'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
+                                                {formData.travelAbility === 'distant' && errors.distantOblasts && touched.distantOblasts && (
+                                                    <div className="validation-tooltip" style={{ width: '100%', marginTop: '0.25rem', marginLeft: '0' }}>{errors.distantOblasts}</div>
+                                                )}
+                                            </div>
+                                        );
+                                    }
 
                                     return (
                                         <label key={opt.val}>

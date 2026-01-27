@@ -26,7 +26,7 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
   // But secrets are only available via env, not process.env
   // Check env first (for vars and secrets), then process.env (for vars only)
   const turnstileSiteKey = env.VITE_TURNSTILE_SITE_KEY || process.env?.VITE_TURNSTILE_SITE_KEY || '';
-  
+
   // Debug logging (remove in production)
   console.log('Worker injecting Turnstile site key:', {
     fromEnv: !!env.VITE_TURNSTILE_SITE_KEY,
@@ -34,11 +34,11 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
     value: turnstileSiteKey ? `${turnstileSiteKey.substring(0, 10)}...` : 'EMPTY',
     fullValue: turnstileSiteKey
   });
-  
+
   if (!turnstileSiteKey) {
     console.warn('Turnstile site key not found in env.VITE_TURNSTILE_SITE_KEY or process.env.VITE_TURNSTILE_SITE_KEY');
   }
-  
+
   // Get submit URL from env, or derive from current request URL
   const submitUrl = env.VITE_SUBMIT_URL || process.env?.VITE_SUBMIT_URL;
   let finalSubmitUrl = submitUrl;
@@ -47,12 +47,12 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
     const url = new URL(requestUrl);
     finalSubmitUrl = `${url.protocol}//${url.host}`;
   }
-  
+
   // Get VITE_ALLOWED_IFRAME_DOMAINS from env (vars are available via env parameter)
   // In Cloudflare Workers, vars from wrangler.jsonc are available via env parameter
   // process.env is populated via nodejs_compat_populate_process_env flag
   const allowedIframeDomains = env.VITE_ALLOWED_IFRAME_DOMAINS || process.env?.VITE_ALLOWED_IFRAME_DOMAINS || '';
-  
+
   // Debug logging - this will help diagnose issues in production
   console.log('Worker injecting VITE_ALLOWED_IFRAME_DOMAINS:', {
     fromEnv: !!env.VITE_ALLOWED_IFRAME_DOMAINS,
@@ -62,7 +62,7 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
     finalValue: allowedIframeDomains || 'EMPTY',
     finalValueLength: allowedIframeDomains?.length || 0
   });
-  
+
   const envScript = `
     <script>
       // Inject process.env for client-side code
@@ -84,7 +84,7 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
       })();
     </script>
   `;
-  
+
   // Inject as the FIRST script in <head> to ensure it executes before any other scripts
   // This is critical for React to have access to window.process.env
   if (html.includes('<head>')) {
@@ -102,7 +102,7 @@ export default {
     // Skip API routes - these should be handled by the submit worker
     // Return 404 immediately so submit worker can handle them
     if (url.pathname.startsWith('/submit') || url.pathname.startsWith('/health')) {
-      return new Response(JSON.stringify({ error: 'Not found' }), { 
+        return new Response(JSON.stringify({ error: 'Not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -111,7 +111,7 @@ export default {
     // Handle CSP headers for iframe embedding
     const allowedDomainsRaw = env.VITE_ALLOWED_IFRAME_DOMAINS || process.env?.VITE_ALLOWED_IFRAME_DOMAINS || '';
     const allowedDomains = allowedDomainsRaw.split(',').map(d => d.trim()).filter(Boolean);
-    
+
     // Build frame-ancestors directive
     // If no domains specified, only allow same origin
     let cspFrameAncestors = "frame-ancestors 'self'";
@@ -126,7 +126,7 @@ export default {
       });
       cspFrameAncestors = `frame-ancestors 'self' ${domainUrls.join(' ')}`;
     }
-    
+
     // CSP directives for Turnstile and general content
     const cspDirectives = [
       cspFrameAncestors,
@@ -143,11 +143,11 @@ export default {
     if (url.pathname === '/' || (!url.pathname.includes('.') && !url.pathname.startsWith('/submit') && !url.pathname.startsWith('/health'))) {
       const indexRequest = new Request(new URL('/index.html', request.url), request);
       const indexResponse = await env.ASSETS.fetch(indexRequest);
-      
+
       if (indexResponse.status === 404) {
         return new Response('index.html not found', { status: 500 });
       }
-      
+
       const indexHtml = await indexResponse.text();
       const injectedHtml = injectEnvVars(indexHtml, env, request.url);
       return new Response(injectedHtml, {
@@ -186,12 +186,12 @@ export default {
     if (contentType.includes('text/html')) {
       const html = await response.text();
       const injectedHtml = injectEnvVars(html, env, request.url);
-      
+
       // Create headers with CSP and security headers
       const headers = new Headers(response.headers);
       headers.set('Content-Security-Policy', cspDirectives);
       headers.set('X-Content-Type-Options', 'nosniff');
-      
+
       return new Response(injectedHtml, {
         status: response.status,
         statusText: response.statusText,
@@ -203,7 +203,7 @@ export default {
     const headers = new Headers(response.headers);
     headers.set('Content-Security-Policy', cspDirectives);
     headers.set('X-Content-Type-Options', 'nosniff');
-    
+
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,

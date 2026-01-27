@@ -14,24 +14,24 @@ const checkIframeOrigin = (): { allowed: boolean; reason?: string } => {
   // The worker injects values into window.process.env, not process.env (which doesn't exist in browser)
   const getDefaultFallback = () => {
     if (typeof window === 'undefined') return '';
-    
+
     const hostname = window.location.hostname;
-    
+
     // Fallback for localhost: if we're on localhost and no config, allow localhost
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'localhost,127.0.0.1';
     }
-    
+
     // Fallback for staging: if we're on signup-staging and no config, allow d1t.tibroish.bg
     if (hostname === 'signup-staging.tibroish.bg') {
       return 'd1t.tibroish.bg';
     }
-    
+
     // Fallback for production: if we're on signup.tibroish.bg and no config, allow tibroish.bg and dabulgaria.bg
     if (hostname === 'signup.tibroish.bg') {
       return 'tibroish.bg,dabulgaria.bg';
     }
-    
+
     return '';
   };
 
@@ -159,9 +159,9 @@ const App: React.FC = () => {
     // The script is injected in <head> but React might load before it executes
     const checkWithRetry = (attempts = 0) => {
       // Check if window.process.env is available
-      const hasEnv = typeof window !== 'undefined' && 
+      const hasEnv = typeof window !== 'undefined' &&
                      (window as any).process?.env?.VITE_ALLOWED_IFRAME_DOMAINS !== undefined;
-      
+
       if (hasEnv || attempts >= 10) {
         // Either we have the env var or we've tried enough times
         const check = checkIframeOrigin();
