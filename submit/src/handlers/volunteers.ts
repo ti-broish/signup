@@ -21,6 +21,7 @@ export interface VolunteerFormData {
   cityRegion?: string | null; // String name
   pollingStation?: string | null; // String address
   travelAbility: string; // Bulgarian string like "Не", "В рамките на населеното място", etc.
+  riskySections: boolean;
   gdprConsent: boolean;
   role: string; // Bulgarian string like "Пазител на вота в секция"
   turnstileToken?: string;
@@ -161,8 +162,8 @@ export async function handleVolunteerSubmission(
         `INSERT INTO volunteers (
           firstName, middleName, lastName, email, phone, egn,
           country, region, municipality, settlement, cityRegion, pollingStation,
-          travelAbility, gdprConsent, role, referralCode, referredBy
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          travelAbility, riskySections, gdprConsent, role, referralCode, referredBy
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(
           formData.firstName,
@@ -178,6 +179,7 @@ export async function handleVolunteerSubmission(
           formData.cityRegion || null,
           formData.pollingStation || null,
           formData.travelAbility,
+          formData.riskySections ? 1 : 0,
           formData.gdprConsent ? 1 : 0,
           formData.role,
           formData.referralCode,

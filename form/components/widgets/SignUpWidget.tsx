@@ -60,7 +60,8 @@ interface FormData {
     settlement: Settlement | null;
     cityRegion: CityRegion | null;
     pollingStation: PollingStation | string | null;
-    travelAbility: 'no' | 'settlement' | 'municipality' | 'region' | 'risky_distant';
+    travelAbility: 'no' | 'settlement' | 'municipality' | 'region' | 'distant';
+    riskySections: boolean;
     gdprConsent: boolean;
     role: 'poll_watcher' | 'video_surveillance';
 }
@@ -79,8 +80,8 @@ interface SignUpWidgetProps {
 
 const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     // Get privacy URL from env var or prop, default to https://tibroish.bg/privacy-notice
-    const effectivePrivacyUrl = privacyUrl || 
-        (typeof process !== 'undefined' && process.env?.VITE_PRIVACY_URL) || 
+    const effectivePrivacyUrl = privacyUrl ||
+        (typeof process !== 'undefined' && process.env?.VITE_PRIVACY_URL) ||
         'https://tibroish.bg/privacy-notice';
     const ABROAD_ID = '32'; // ID за "Извън страната"
     const BULGARIA_ID = '000'; // ID за "България"
@@ -121,6 +122,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         cityRegion: null,
         pollingStation: null,
         travelAbility: 'no',
+        riskySections: false,
         gdprConsent: false,
         role: 'poll_watcher'
     });
@@ -162,11 +164,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
         script.async = true;
         script.defer = true;
-        
+
         script.onload = () => {
             console.log('Turnstile script loaded successfully');
         };
-        
+
         script.onerror = (error) => {
             console.error('Failed to load Turnstile script:', error);
             setErrors(prev => ({
@@ -174,7 +176,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 turnstile: 'Не може да се зареди скриптът за валидация. Моля опитайте отново.'
             }));
         };
-        
+
         document.head.appendChild(script);
 
         return () => {
@@ -256,7 +258,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         // Wait for Turnstile script to load (with timeout)
         let timeoutId: NodeJS.Timeout;
         let checkInterval: NodeJS.Timeout;
-        
+
         const attemptRender = () => {
             if (!turnstileRef.current) {
                 console.log('Turnstile ref not ready yet');
@@ -275,12 +277,12 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             if (timeoutId) clearTimeout(timeoutId);
             return true;
         };
-        
+
         if (attemptRender()) {
             // Already available
             return;
         }
-        
+
         // Poll for Turnstile availability
         checkInterval = setInterval(() => {
             if (attemptRender()) {
@@ -778,7 +780,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         if (!formData.phone) {
             newErrors.phone = 'Полето е задължително';
         } else if (!validatePhone(formData.phone)) {
-            newErrors.phone = 'Невалиден мобилен номер';
+            newErrors.phone = 'Невалиден телефонен номер';
         }
 
         const egnVal = validateEGN(formData.egn);
@@ -829,19 +831,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         }
 
         if (name === 'travelAbility') {
-            const hierarchy = ['no', 'settlement', 'municipality', 'region', 'risky_distant'];
+            // Treat the checkboxes as a slider:
+            // clicking any level selects exactly that level;
+            // everything above it appears checked, everything below unchecked.
             const targetLevel = value;
-
-            if (targetLevel === 'no') {
-                setFormData(prev => ({ ...prev, travelAbility: 'no' }));
-            } else if (targetLevel === formData.travelAbility) {
-                // If clicking the current highest level, move one step down
-                const currentIndex = hierarchy.indexOf(targetLevel);
-                const prevLevel = hierarchy[currentIndex - 1] || 'no';
-                setFormData(prev => ({ ...prev, travelAbility: prevLevel as any }));
-            } else {
-                setFormData(prev => ({ ...prev, travelAbility: targetLevel as any }));
-            }
+            setFormData(prev => ({ ...prev, travelAbility: targetLevel as any }));
             return;
         }
 
@@ -934,6 +928,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 const pollingStation = pollingStations.find(ps => ps.id.toString() === value) || null;
                 setFormData(prev => ({ ...prev, pollingStation }));
             }
+        } else if (name === 'riskySections' || name === 'gdprConsent') {
+            // Explicitly handle boolean checkboxes to ensure correct boolean value
+            setFormData(prev => ({ ...prev, [name]: Boolean(finalValue) }));
         } else {
             setFormData(prev => ({ ...prev, [name]: finalValue }));
         }
@@ -985,11 +982,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
 
             // Convert travelAbility to Bulgarian string (simplified, without customization)
             const travelAbilityMap: Record<string, string> = {
-                'no': 'Не',
+                'no': 'Само където гласувам',
                 'settlement': 'В рамките на населеното място',
                 'municipality': 'В рамките на общината',
                 'region': 'В рамките на областта',
-                'risky_distant': 'Рискови секции на далечно разстояние'
+                'distant': isAbroad ? 'В други държави' : 'В други области'
             };
             const travelAbilityString = travelAbilityMap[formData.travelAbility] || formData.travelAbility;
 
@@ -1010,6 +1007,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 cityRegion: formData.cityRegion?.name || null,
                 pollingStation: pollingStationString,
                 travelAbility: travelAbilityString,
+                riskySections: formData.riskySections,
                 gdprConsent: formData.gdprConsent,
                 role: roleString,
                 turnstileToken: isLocalDev ? 'local-dev-token' : turnstileToken,
@@ -1271,8 +1269,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                     })}
                     {renderField('phone', 'Телефонен номер', 'tel', {
                         required: true,
-                        placeholder: '+359xxxxxxxx или 08xxxxxxxx/098xxxxxxxx',
-                        note: 'Мобилен телефон, не стационарен',
+                        placeholder: '08xxxxxxxx / +359xxxxxxxx',
+                        note: 'Невалиден телефонен номер',
                         autoComplete: 'tel'
                     })}
                     {renderField('egn', 'ЕГН', 'text', {
@@ -1432,61 +1430,61 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                         <div className="radio-group">
                             {(() => {
                                 const isAbroad = formData.region?.code === ABROAD_ID;
+                                const isSofia = formData.region?.name?.includes('София') || formData.region?.name?.includes('Sofia');
                                 const travelOptions = isAbroad
                                     ? [
-                                        { val: 'no', lab: 'Не' },
-                                        { 
-                                            val: 'settlement', 
-                                            lab: formData.settlement?.name 
-                                                ? `В рамките на ${formData.settlement.name}` 
+                                        { val: 'no', lab: 'Само където гласувам' },
+                                        {
+                                            val: 'settlement',
+                                            lab: formData.settlement?.name
+                                                ? `В рамките на ${formData.settlement.name}`
                                                 : 'В рамките на града'
                                         },
-                                        { 
-                                            val: 'region', 
-                                            lab: formData.country?.name 
-                                                ? `В рамките на ${formData.country.name}` 
+                                        {
+                                            val: 'region',
+                                            lab: formData.country?.name
+                                                ? `В рамките на ${formData.country.name}`
                                                 : 'В рамките на държавата'
                                         },
-                                        { val: 'risky_distant', lab: 'Рискови секции на далечно разстояние' }
+                                        { val: 'distant', lab: 'В други държави' }
                                     ]
                                     : [
-                                        { val: 'no', lab: 'Не' },
-                                        { 
-                                            val: 'settlement', 
-                                            lab: formData.settlement?.name 
-                                                ? `В рамките на ${formData.settlement.name}` 
+                                        { val: 'no', lab: 'Само където гласувам' },
+                                        {
+                                            val: 'settlement',
+                                            lab: formData.settlement?.name
+                                                ? `В рамките на ${formData.settlement.name}`
                                                 : 'В рамките на населеното място'
                                         },
-                                        { 
-                                            val: 'municipality', 
-                                            lab: formData.municipality?.name 
-                                                ? `В рамките на община ${formData.municipality.name}` 
+                                        {
+                                            val: 'municipality',
+                                            lab: formData.municipality?.name
+                                                ? `В рамките на община ${formData.municipality.name}`
                                                 : 'В рамките на общината'
                                         },
-                                        {
+                                        ...(isSofia ? [] : [{
                                             val: 'region',
                                             lab: formData.region?.name
                                                 ? (formData.region.name.includes('МИР')
                                                     ? `В рамките на ${formData.region.name}`
                                                     : `В рамките на област ${formData.region.name}`)
                                                 : 'В рамките на областта'
-                                        },
-                                        { val: 'risky_distant', lab: 'Рискови секции на далечно разстояние' }
+                                        }]),
+                                        { val: 'distant', lab: 'В други области' }
                                     ];
-                                
+
                                 return travelOptions.map((opt, index, arr) => {
-                                    const hierarchy = isAbroad 
-                                        ? ['no', 'settlement', 'region', 'risky_distant']
-                                        : ['no', 'settlement', 'municipality', 'region', 'risky_distant'];
+                                    const hierarchy = isAbroad
+                                        ? ['no', 'settlement', 'region', 'distant']
+                                        : (isSofia
+                                            ? ['no', 'settlement', 'municipality', 'distant']
+                                            : ['no', 'settlement', 'municipality', 'region', 'distant']);
                                     const currentIndex = hierarchy.indexOf(opt.val);
                                     const selectedIndex = hierarchy.indexOf(formData.travelAbility);
 
-                                    let isChecked = false;
-                                    if (opt.val === 'no') {
-                                        isChecked = formData.travelAbility === 'no';
-                                    } else if (formData.travelAbility !== 'no') {
-                                        isChecked = currentIndex <= selectedIndex;
-                                    }
+                                    // Slider behavior: check all options from top (index 0) down to selected level
+                                    // 'no' is always checked when any level is selected (it's the base level)
+                                    let isChecked = currentIndex <= selectedIndex;
 
                                     return (
                                         <label key={opt.val}>
@@ -1503,6 +1501,23 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                                 });
                             })()}
                         </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+                            Участие в рискови секции
+                        </label>
+                        <label className="checkbox-label">
+                            <input
+                                type="checkbox"
+                                name="riskySections"
+                                checked={formData.riskySections}
+                                onChange={handleChange}
+                            />
+                            <span>
+                                Мога да участвам в рискови секции
+                            </span>
+                        </label>
                     </div>
 
                     <div className="form-group">

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS volunteers (
   cityRegion TEXT,
   pollingStation TEXT,
   travelAbility TEXT NOT NULL,
+  riskySections INTEGER NOT NULL DEFAULT 0,
   gdprConsent INTEGER NOT NULL DEFAULT 0,
   role TEXT NOT NULL,
   referralCode TEXT NOT NULL,

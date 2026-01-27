@@ -3,6 +3,8 @@
 const electionDateStr = (typeof process !== 'undefined' && process.env?.VITE_ELECTION_DATE) || '2026-04-19';
 export const ELECTION_DATE = new Date(electionDateStr);
 
+import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
+
 export const validateCyrillic = (text: string) => /^[А-Яа-я\s-]+$/.test(text);
 
 export const validateEmail = (email: string) => {
@@ -11,9 +13,52 @@ export const validateEmail = (email: string) => {
 };
 
 export const validatePhone = (phone: string) => {
-    const phonePattern = /^(\+359[0-9]{9}|0[0-9]{9}|\+[1-9][0-9]{1,3}[0-9]{6,13})$/;
-    const landlinePattern = /^(\+359[2-7]|0[2-7])/;
-    return phonePattern.test(phone) && !landlinePattern.test(phone);
+    if (!phone || phone.trim() === '') {
+        return false;
+    }
+
+    try {
+        // Try to parse the phone number with any country code
+        const phoneNumber = parsePhoneNumber(phone);
+        
+        // Check if it's a valid phone number
+        if (!phoneNumber || !isValidPhoneNumber(phoneNumber.number)) {
+            return false;
+        }
+
+        // Ensure it's a mobile number (not a landline)
+        // For Bulgaria, mobile numbers start with 8 or 9
+        const countryCode = phoneNumber.country;
+        const nationalNumber = phoneNumber.nationalNumber;
+        
+        if (countryCode === 'BG') {
+            // Bulgarian mobile numbers start with 8 or 9
+            const firstDigit = nationalNumber.charAt(0);
+            if (firstDigit !== '8' && firstDigit !== '9') {
+                return false;
+            }
+        }
+        // For other countries, libphonenumber-js validates the number format
+        // We accept any valid mobile number from any country
+
+        return true;
+    } catch (error) {
+        // If parsing fails, try parsing with a default country (Bulgaria)
+        try {
+            const phoneNumber = parsePhoneNumber(phone, 'BG');
+            if (phoneNumber && isValidPhoneNumber(phoneNumber.number)) {
+                // Check if it's a Bulgarian mobile number
+                const nationalNumber = phoneNumber.nationalNumber;
+                const firstDigit = nationalNumber.charAt(0);
+                if (firstDigit === '8' || firstDigit === '9') {
+                    return true;
+                }
+            }
+        } catch (fallbackError) {
+            // If both attempts fail, it's not a valid phone number
+        }
+        return false;
+    }
 };
 
 export const validateEGN = (egn: string) => {
