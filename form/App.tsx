@@ -11,13 +11,54 @@ const checkIframeOrigin = (): { allowed: boolean; reason?: string } => {
   }
 
   // Get allowed domains from env
+  // The worker injects values into window.process.env, not process.env (which doesn't exist in browser)
+  const getDefaultFallback = () => {
+    if (typeof window === 'undefined') return '';
+    
+    const hostname = window.location.hostname;
+    
+    // Fallback for localhost: if we're on localhost and no config, allow localhost
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'localhost,127.0.0.1';
+    }
+    
+    // Fallback for staging: if we're on signup-staging and no config, allow d1t.tibroish.bg
+    if (hostname === 'signup-staging.tibroish.bg') {
+      return 'd1t.tibroish.bg';
+    }
+    
+    // Fallback for production: if we're on signup.tibroish.bg and no config, allow tibroish.bg and dabulgaria.bg
+    if (hostname === 'signup.tibroish.bg') {
+      return 'tibroish.bg,dabulgaria.bg';
+    }
+    
+    return '';
+  };
+
+  // Try multiple sources: runtime injection (worker), build-time (Vite), then fallback
   const allowedDomainsRaw =
-    (typeof process !== 'undefined' && process.env?.ALLOWED_IFRAME_DOMAINS) || '';
+    (typeof window !== 'undefined' && (window as any).process?.env?.VITE_ALLOWED_IFRAME_DOMAINS) ||
+    (typeof process !== 'undefined' && process.env?.VITE_ALLOWED_IFRAME_DOMAINS) ||
+    getDefaultFallback();
+
+  // Debug logging
+  console.log('Iframe protection check:', {
+    hasProcess: typeof process !== 'undefined',
+    hasProcessEnv: typeof process !== 'undefined' && typeof process.env !== 'undefined',
+    hasWindowProcess: typeof window !== 'undefined' && typeof (window as any).process !== 'undefined',
+    hasWindowProcessEnv: typeof window !== 'undefined' && typeof (window as any).process?.env !== 'undefined',
+    windowProcessEnvValue: typeof window !== 'undefined' ? ((window as any).process?.env?.VITE_ALLOWED_IFRAME_DOMAINS || 'not found') : 'window undefined',
+    allowedDomainsRaw: allowedDomainsRaw,
+    allowedDomainsRawType: typeof allowedDomainsRaw,
+    allowedDomainsRawLength: allowedDomainsRaw?.length
+  });
 
   const allowedDomains = allowedDomainsRaw
     .split(',')
     .map(d => d.trim())
     .filter(Boolean);
+
+  console.log('Parsed allowed domains:', allowedDomains);
 
   // If no domains configured, block iframe embedding (security: explicit allowlist)
   if (allowedDomains.length === 0) {
@@ -114,8 +155,24 @@ const App: React.FC = () => {
   const [iframeCheck, setIframeCheck] = useState<{ allowed: boolean; reason?: string } | null>(null);
 
   useEffect(() => {
-    const check = checkIframeOrigin();
-    setIframeCheck(check);
+    // Wait a bit for the injected script to execute and set window.process.env
+    // The script is injected in <head> but React might load before it executes
+    const checkWithRetry = (attempts = 0) => {
+      // Check if window.process.env is available
+      const hasEnv = typeof window !== 'undefined' && 
+                     (window as any).process?.env?.VITE_ALLOWED_IFRAME_DOMAINS !== undefined;
+      
+      if (hasEnv || attempts >= 10) {
+        // Either we have the env var or we've tried enough times
+        const check = checkIframeOrigin();
+        setIframeCheck(check);
+      } else {
+        // Retry after a short delay
+        setTimeout(() => checkWithRetry(attempts + 1), 50);
+      }
+    };
+
+    checkWithRetry();
   }, []);
 
   // Show error if iframe check fails

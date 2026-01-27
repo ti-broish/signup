@@ -7,7 +7,7 @@ export interface Env {
   ASSETS: {
     fetch: (request: Request) => Promise<Response>;
   };
-  ALLOWED_IFRAME_DOMAINS?: string;
+  VITE_ALLOWED_IFRAME_DOMAINS?: string;
   VITE_DATA_URL?: string;
   VITE_SUBMIT_URL?: string;
   VITE_SUBMIT_ENDPOINT?: string;
@@ -48,6 +48,21 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
     finalSubmitUrl = `${url.protocol}//${url.host}`;
   }
   
+  // Get VITE_ALLOWED_IFRAME_DOMAINS from env (vars are available via env parameter)
+  // In Cloudflare Workers, vars from wrangler.jsonc are available via env parameter
+  // process.env is populated via nodejs_compat_populate_process_env flag
+  const allowedIframeDomains = env.VITE_ALLOWED_IFRAME_DOMAINS || process.env?.VITE_ALLOWED_IFRAME_DOMAINS || '';
+  
+  // Debug logging - this will help diagnose issues in production
+  console.log('Worker injecting VITE_ALLOWED_IFRAME_DOMAINS:', {
+    fromEnv: !!env.VITE_ALLOWED_IFRAME_DOMAINS,
+    envValue: env.VITE_ALLOWED_IFRAME_DOMAINS || 'undefined',
+    fromProcessEnv: !!process.env?.VITE_ALLOWED_IFRAME_DOMAINS,
+    processEnvValue: process.env?.VITE_ALLOWED_IFRAME_DOMAINS || 'undefined',
+    finalValue: allowedIframeDomains || 'EMPTY',
+    finalValueLength: allowedIframeDomains?.length || 0
+  });
+  
   const envScript = `
     <script>
       // Inject process.env for client-side code
@@ -63,7 +78,8 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
         window.process.env.VITE_TURNSTILE_SITE_KEY = ${JSON.stringify(turnstileSiteKey)};
         window.process.env.VITE_ELECTION_DATE = ${JSON.stringify(env.VITE_ELECTION_DATE || process.env.VITE_ELECTION_DATE || '2026-04-19')};
         window.process.env.VITE_PRIVACY_URL = ${JSON.stringify(env.VITE_PRIVACY_URL || process.env.VITE_PRIVACY_URL || 'https://tibroish.bg/privacy-notice')};
-        window.process.env.ALLOWED_IFRAME_DOMAINS = ${JSON.stringify(env.ALLOWED_IFRAME_DOMAINS || process.env?.ALLOWED_IFRAME_DOMAINS || '')};
+        window.process.env.VITE_ALLOWED_IFRAME_DOMAINS = ${JSON.stringify(allowedIframeDomains)};
+        console.log('Env vars injected. VITE_ALLOWED_IFRAME_DOMAINS:', window.process.env.VITE_ALLOWED_IFRAME_DOMAINS || 'EMPTY', 'length:', (window.process.env.VITE_ALLOWED_IFRAME_DOMAINS || '').length);
         console.log('Env vars injected. Turnstile site key:', window.process.env.VITE_TURNSTILE_SITE_KEY ? window.process.env.VITE_TURNSTILE_SITE_KEY.substring(0, 10) + '...' : 'EMPTY');
       })();
     </script>
@@ -93,7 +109,7 @@ export default {
     }
 
     // Handle CSP headers for iframe embedding
-    const allowedDomainsRaw = env.ALLOWED_IFRAME_DOMAINS || process.env?.ALLOWED_IFRAME_DOMAINS || '';
+    const allowedDomainsRaw = env.VITE_ALLOWED_IFRAME_DOMAINS || process.env?.VITE_ALLOWED_IFRAME_DOMAINS || '';
     const allowedDomains = allowedDomainsRaw.split(',').map(d => d.trim()).filter(Boolean);
     
     // Build frame-ancestors directive
@@ -149,17 +165,6 @@ export default {
     // Serve static assets
     const response = await env.ASSETS.fetch(request);
 
-    // Clone response to modify headers
-    const newResponse = new Response(response.body, response);
-
-    // Add CSP headers
-    newResponse.headers.set('Content-Security-Policy', cspDirectives);
-    
-    // Add security headers
-    newResponse.headers.set('X-Content-Type-Options', 'nosniff');
-    // Note: X-Frame-Options is not needed when CSP frame-ancestors is set
-    // CSP frame-ancestors takes precedence and is more flexible
-
     // Handle 404s for assets
     if (response.status === 404) {
       // For CSS files that don't exist, return empty with proper Content-Type
@@ -181,12 +186,28 @@ export default {
     if (contentType.includes('text/html')) {
       const html = await response.text();
       const injectedHtml = injectEnvVars(html, env, request.url);
+      
+      // Create headers with CSP and security headers
+      const headers = new Headers(response.headers);
+      headers.set('Content-Security-Policy', cspDirectives);
+      headers.set('X-Content-Type-Options', 'nosniff');
+      
       return new Response(injectedHtml, {
-        ...response,
-        headers: newResponse.headers,
+        status: response.status,
+        statusText: response.statusText,
+        headers: headers,
       });
     }
 
-    return newResponse;
+    // For non-HTML assets, clone response and add CSP headers
+    const headers = new Headers(response.headers);
+    headers.set('Content-Security-Policy', cspDirectives);
+    headers.set('X-Content-Type-Options', 'nosniff');
+    
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: headers,
+    });
   },
 };

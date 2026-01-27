@@ -9,8 +9,10 @@
     "build:staging": "vite build --mode staging",
     "build:production": "vite build --mode production",
     "preview": "vite preview",
-    "deploy": "wrangler deploy --config wrangler.jsonc",
-    "dev:worker": "wrangler dev",
+    "deploy": "vite build && wrangler deploy --config wrangler.jsonc",
+    "deploy:staging": "vite build --mode staging && wrangler deploy --config wrangler.jsonc --env staging",
+    "deploy:production": "vite build --mode production && wrangler deploy --config wrangler.jsonc --env production",
+    "dev:worker": "wrangler dev --env development",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"

@@ -15,12 +15,12 @@
   },
   "vars": {
     "VITE_DATA_URL": "https://api.tibroish.bg",
-    "VITE_SUBMIT_URL": "https://signup-staging.tibroish.bg",
+    "VITE_SUBMIT_URL": "http://localhost:8787",
     "VITE_SUBMIT_ENDPOINT": "submit",
     "VITE_ELECTION_DATE": "2026-04-19",
-    "VITE_FORM_URL": "https://signup-staging.tibroish.bg",
+    "VITE_FORM_URL": "http://localhost:8787",
     "VITE_PRIVACY_URL": "https://tibroish.bg/privacy-notice",
-    "ALLOWED_IFRAME_DOMAINS": ""
+    "VITE_ALLOWED_IFRAME_DOMAINS": "localhost,127.0.0.1,tibroish.bg"
   },
   "env": {
     "staging": {
@@ -38,7 +38,7 @@
         "VITE_ELECTION_DATE": "2026-04-19",
         "VITE_FORM_URL": "https://signup-staging.tibroish.bg",
         "VITE_PRIVACY_URL": "https://tibroish.bg/privacy-notice",
-        "ALLOWED_IFRAME_DOMAINS": "d1t.tibroish.bg"
+        "VITE_ALLOWED_IFRAME_DOMAINS": "d1t.tibroish.bg"
       }
     },
     "production": {
@@ -56,7 +56,7 @@
         "VITE_ELECTION_DATE": "2026-04-19",
         "VITE_FORM_URL": "https://signup.tibroish.bg",
         "VITE_PRIVACY_URL": "https://tibroish.bg/privacy-notice",
-        "ALLOWED_IFRAME_DOMAINS": "tibroish.bg,dabulgaria.bg"
+        "VITE_ALLOWED_IFRAME_DOMAINS": "tibroish.bg,dabulgaria.bg"
       }
     },
     "development": {
@@ -65,8 +65,8 @@
         "VITE_SUBMIT_URL": "http://localhost:8787",
         "VITE_SUBMIT_ENDPOINT": "submit",
         "VITE_ELECTION_DATE": "2026-04-19",
-        "VITE_FORM_URL": "https://signup-staging.tibroish.bg",
-        "ALLOWED_IFRAME_DOMAINS": "localhost,127.0.0.1,tibroish.bg"
+        "VITE_FORM_URL": "http://localhost:8787",
+        "VITE_ALLOWED_IFRAME_DOMAINS": "localhost,127.0.0.1,tibroish.bg"
       }
     }
   }
