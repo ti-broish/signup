@@ -4,22 +4,16 @@
     width: 100%;
     height: 100%;
     overflow-y: auto;
-    padding: 2.5rem;
+    padding: 2rem;
     background: #ffffff;
     box-sizing: border-box;
 }
 
-.volunteer-registration-form h2 {
-    text-align: center;
-    color: #1a237e;
-    font-size: 2rem;
-    margin-bottom: 2.5rem;
-    font-weight: 700;
-}
+/* Removed h2 heading styles - headings removed from form */
 
 .form-section {
-    margin-bottom: 2.5rem;
-    padding-bottom: 1.5rem;
+    margin-bottom: 1.4rem;
+    padding-bottom: 1rem;
     border-bottom: 1px solid #f0f0f0;
 }
 
@@ -27,21 +21,16 @@
     border-bottom: none;
 }
 
-.form-section h3 {
-    color: #3949ab;
-    margin-bottom: 1.5rem;
-    font-size: 1.3rem;
-    font-weight: 600;
-}
+/* Removed h3 heading styles - headings removed from form */
 
 .form-group {
-    margin-bottom: 1.8rem;
+    margin-bottom: 1.4rem;
     position: relative;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.5rem;
     color: #444;
     font-weight: 600;
     font-size: 0.95rem;
@@ -62,7 +51,7 @@
 .form-group input,
 .form-group select {
     width: 100%;
-    padding: 0.85rem 1rem;
+    padding: 0.7rem 0.9rem;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
     font-size: 1rem;
@@ -135,9 +124,9 @@
 .radio-group {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.6rem;
     background: #f9f9f9;
-    padding: 1rem;
+    padding: 0.8rem;
     border-radius: 8px;
 }
 
@@ -211,16 +200,16 @@
     background-color: #ffebee;
     border: 1px solid #ffcdd2;
     border-radius: 8px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
 }
 
 /* Info Box */
 .info-text {
     background-color: #e8eaf6;
-    padding: 1.2rem;
+    padding: 1rem;
     border-radius: 8px;
     border-left: 5px solid #3949ab;
-    margin-top: 1.5rem;
+    margin-top: 1.2rem;
 }
 
 .info-text p {
@@ -232,7 +221,7 @@
 /* Submit Button */
 .submit-button {
     width: 100%;
-    padding: 1.1rem;
+    padding: 1rem;
     background: linear-gradient(135deg, #3949ab, #1a237e);
     color: white;
     border: none;
@@ -242,7 +231,7 @@
     cursor: pointer;
     transition: all 0.3s;
     box-shadow: 0 4px 15px rgba(26, 35, 126, 0.2);
-    margin-top: 1rem;
+    margin-top: 0.8rem;
 }
 
 .submit-button:hover:not(:disabled) {
@@ -289,7 +278,7 @@
 .turnstile-widget {
     display: flex;
     justify-content: center;
-    margin: 1rem 0;
+    margin: 0.8rem 0;
     min-height: 65px;
     /* Reserve space for widget */
 }

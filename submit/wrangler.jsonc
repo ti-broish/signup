@@ -1,0 +1,91 @@
+{
+  "name": "signup-submit",
+  "main": "src/index.ts",
+  "account_id": "579692914a155ab268c22b814cbf8a05",
+  "compatibility_date": "2024-01-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "signup-db-staging",
+      "database_id": "922e6548-6b80-4762-aee5-bdc00fc80432"
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://signup-staging.tibroish.bg,http://localhost:3000,http://localhost:5173",
+    "RATE_LIMIT_REQUESTS": "5",
+    "RATE_LIMIT_WINDOW_SECONDS": "3600"
+  },
+  "routes": [
+    {
+      "pattern": "signup-staging.tibroish.bg/submit*",
+      "custom_domain": false
+    },
+    {
+      "pattern": "signup-staging.tibroish.bg/health*",
+      "custom_domain": false
+    }
+  ],
+  "env": {
+    "staging": {
+      "routes": [
+        {
+          "pattern": "signup-staging.tibroish.bg/submit*",
+          "custom_domain": false
+        },
+        {
+          "pattern": "signup-staging.tibroish.bg/health*",
+          "custom_domain": false
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "signup-db-staging",
+          "database_id": "922e6548-6b80-4762-aee5-bdc00fc80432"
+        }
+      ],
+      "vars": {
+        "ALLOWED_ORIGINS": "https://signup-staging.tibroish.bg",
+        "RATE_LIMIT_REQUESTS": "5",
+        "RATE_LIMIT_WINDOW_SECONDS": "3600"
+      },
+      "observability": {
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true
+        }
+      }
+    },
+    "production": {
+      "routes": [
+        {
+          "pattern": "signup.tibroish.bg/submit*",
+          "custom_domain": false
+        },
+        {
+          "pattern": "signup.tibroish.bg/health*",
+          "custom_domain": false
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "signup-db-production",
+          "database_id": "929d8b25-5dce-4e27-a89a-030bf56a9c1f"
+        }
+      ],
+      "vars": {
+        "ALLOWED_ORIGINS": "https://signup.tibroish.bg",
+        "RATE_LIMIT_REQUESTS": "5",
+        "RATE_LIMIT_WINDOW_SECONDS": "3600"
+      }
+    },
+    "development": {
+      "vars": {
+        "ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:5173"
+      }
+    }
+  }
+}

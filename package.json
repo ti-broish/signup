@@ -1,32 +1,34 @@
 {
-  "name": "iframe-widget-portal",
+  "name": "@signup/monorepo",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
-  },
-  "dependencies": {
-    "@google/genai": "^1.37.0",
-    "axios": "^1.13.2",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "recharts": "^3.6.0"
+    "dev": "pnpm --parallel --filter './form' --filter './submit' dev",
+    "build": "pnpm --filter './form' build && pnpm --filter './submit' build && pnpm --filter './export' build",
+    "build:staging": "pnpm --filter './form' build:staging && pnpm --filter './submit' build && pnpm --filter './export' build",
+    "deploy:form": "pnpm --filter './form' deploy",
+    "deploy:submit": "pnpm --filter './submit' deploy",
+    "deploy:export": "pnpm --filter './export' deploy",
+    "deploy": "pnpm deploy:form && pnpm deploy:submit && pnpm deploy:export",
+    "deploy:staging": "pnpm deploy:form:staging && pnpm deploy:submit:staging && pnpm deploy:export:staging",
+    "deploy:production": "pnpm deploy:form:production && pnpm deploy:submit:production && pnpm deploy:export:production",
+    "deploy:form:staging": "pnpm --filter './form' build:staging && pnpm --filter './form' exec wrangler deploy --config wrangler.jsonc --env staging",
+    "deploy:form:production": "pnpm --filter './form' build:production && pnpm --filter './form' exec wrangler deploy --config wrangler.jsonc --env production",
+    "deploy:submit:staging": "pnpm --filter './submit' exec wrangler deploy --config wrangler.jsonc --env staging",
+    "deploy:submit:production": "pnpm --filter './submit' exec wrangler deploy --config wrangler.jsonc --env production",
+    "deploy:export:staging": "pnpm --filter './export' exec wrangler deploy --config wrangler.jsonc --env staging",
+    "deploy:export:production": "pnpm --filter './export' exec wrangler deploy --config wrangler.jsonc --env production",
+    "db:setup": "bash scripts/setup-d1-databases.sh",
+    "db:migrate:staging": "cd submit && npx wrangler d1 migrations apply signup-db-staging --env=staging",
+    "db:migrate:production": "cd submit && npx wrangler d1 migrations apply signup-db-production --env=production",
+    "test": "pnpm --recursive test"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.1",
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "@vitest/ui": "^4.0.17",
-    "jsdom": "^27.4.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "vitest": "^4.0.17"
+    "pnpm": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
   }
 }

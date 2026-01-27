@@ -1,0 +1,22 @@
+{
+  "name": "@signup/submit",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.jsonc",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
+    "db:migrate": "wrangler d1 migrations apply signup-db-staging --local --config wrangler.jsonc",
+    "db:migrate:staging": "wrangler d1 migrations apply signup-db-staging --env staging --remote --config wrangler.jsonc",
+    "db:migrate:production": "wrangler d1 migrations apply signup-db-production --env production --remote --config wrangler.jsonc",
+    "db:setup": "./scripts/apply-local-schema.sh",
+    "db:create": "wrangler d1 create signup-db",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.8.2",
+    "wrangler": "^4.60.0"
+  }
+}
