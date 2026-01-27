@@ -78,6 +78,34 @@ interface SignUpWidgetProps {
     privacyUrl?: string;
 }
 
+/**
+ * Notify parent window that form submission was successful
+ * Uses postMessage for cross-origin communication and tries to call a function for same-origin
+ */
+const notifyParentSubmitSuccess = () => {
+    try {
+        // Send postMessage to parent window (works for cross-origin)
+        if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+            window.parent.postMessage('tibroishSubmitSuccess', '*');
+        }
+    } catch (e) {
+        console.warn('Could not send postMessage to parent:', e);
+    }
+
+    try {
+        // Try to call a function on parent window if it exists (for same-origin or secure contexts)
+        if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+            const parentWindow = window.parent as any;
+            if (typeof parentWindow.tibroishSubmitSuccess === 'function') {
+                parentWindow.tibroishSubmitSuccess();
+            }
+        }
+    } catch (e) {
+        // Cross-origin restriction - this is expected and safe to ignore
+        // postMessage will handle cross-origin communication
+    }
+};
+
 const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     // Get privacy URL from env var or prop, default to https://tibroish.bg/privacy-notice
     const effectivePrivacyUrl = privacyUrl ||
@@ -1044,6 +1072,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             setIsSubmitted(true);
             // Reset scroll flag for new submission
             hasScrolledToSuccess.current = false;
+
+            // Notify parent window of successful submission
+            notifyParentSubmitSuccess();
 
             // Clear persisted form data on successful submission
             clearPersistedFormData();
