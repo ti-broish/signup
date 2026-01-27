@@ -1,0 +1,30 @@
+{
+  "name": "signup-submit",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-01-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "signup-db",
+      "database_id": "" // Set this after creating the database
+    }
+  ],
+  "vars": {
+    "TURNSTILE_SECRET_KEY": "",
+    "ALLOWED_ORIGINS": "http://localhost:3000,https://form.signup.example.com",
+    "RATE_LIMIT_REQUESTS": "5",
+    "RATE_LIMIT_WINDOW_SECONDS": "3600"
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "ALLOWED_ORIGINS": "https://form.signup.example.com"
+      }
+    },
+    "development": {
+      "vars": {
+        "ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:5173"
+      }
+    }
+  }
+}
