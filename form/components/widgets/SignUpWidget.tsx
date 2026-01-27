@@ -439,7 +439,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 try {
                     hasScrolledToSuccess.current = true;
 
-                    // Scroll the success message into view at the top (only current frame)
+                    // Scroll the success message into view at the top of current frame
                     if (successMessageRef.current) {
                         successMessageRef.current.scrollIntoView({
                             behavior: 'smooth',
@@ -452,6 +452,35 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                             behavior: 'smooth'
                         });
                     }
+
+                    // Also scroll top window to top (try multiple times to overcome interference)
+                    const scrollParentToTop = () => {
+                        try {
+                            // Use window.top to get the topmost window in the frame hierarchy
+                            const targetWindow = (window.top && window.top !== window) ? window.top :
+                                                (window.parent !== window ? window.parent : null);
+
+                            if (targetWindow) {
+                                // Use immediate scroll (no smooth behavior) to avoid interference
+                                targetWindow.scrollTo({
+                                    top: 0,
+                                    left: 0,
+                                    behavior: 'auto'
+                                });
+                                // Also try the simple syntax as fallback
+                                targetWindow.scrollTo(0, 0);
+                            }
+                        } catch (e) {
+                            // Cross-origin restriction - can't access parent/top window
+                            // This is expected in some iframe scenarios
+                        }
+                    };
+
+                    // Try scrolling immediately and multiple times with delays
+                    setTimeout(scrollParentToTop, 100);
+                    setTimeout(scrollParentToTop, 400);
+                    setTimeout(scrollParentToTop, 800);
+                    setTimeout(scrollParentToTop, 1200);
                 } catch (e) {
                     // Ignore scroll errors
                     console.warn('Scroll to top failed:', e);

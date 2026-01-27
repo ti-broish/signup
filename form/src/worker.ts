@@ -63,6 +63,7 @@ function injectEnvVars(html: string, env: Env, requestUrl: string): string {
         window.process.env.VITE_TURNSTILE_SITE_KEY = ${JSON.stringify(turnstileSiteKey)};
         window.process.env.VITE_ELECTION_DATE = ${JSON.stringify(env.VITE_ELECTION_DATE || process.env.VITE_ELECTION_DATE || '2026-04-19')};
         window.process.env.VITE_PRIVACY_URL = ${JSON.stringify(env.VITE_PRIVACY_URL || process.env.VITE_PRIVACY_URL || 'https://tibroish.bg/privacy-notice')};
+        window.process.env.ALLOWED_IFRAME_DOMAINS = ${JSON.stringify(env.ALLOWED_IFRAME_DOMAINS || process.env?.ALLOWED_IFRAME_DOMAINS || '')};
         console.log('Env vars injected. Turnstile site key:', window.process.env.VITE_TURNSTILE_SITE_KEY ? window.process.env.VITE_TURNSTILE_SITE_KEY.substring(0, 10) + '...' : 'EMPTY');
       })();
     </script>
@@ -92,8 +93,23 @@ export default {
     }
 
     // Handle CSP headers for iframe embedding
-    const allowedDomains = env.ALLOWED_IFRAME_DOMAINS?.split(',').map(d => d.trim()).filter(Boolean) || [];
-    const cspFrameAncestors = `frame-ancestors 'self' ${allowedDomains.map(d => `https://${d}`).join(' ')}`;
+    const allowedDomainsRaw = env.ALLOWED_IFRAME_DOMAINS || process.env?.ALLOWED_IFRAME_DOMAINS || '';
+    const allowedDomains = allowedDomainsRaw.split(',').map(d => d.trim()).filter(Boolean);
+    
+    // Build frame-ancestors directive
+    // If no domains specified, only allow same origin
+    let cspFrameAncestors = "frame-ancestors 'self'";
+    if (allowedDomains.length > 0) {
+      // Map domains to URLs (handle localhost/http and regular domains)
+      const domainUrls = allowedDomains.map(d => {
+        // If domain contains localhost or IP, use http://
+        if (d.includes('localhost') || d.match(/^\d+\.\d+\.\d+\.\d+/) || d.includes('127.0.0.1')) {
+          return `http://${d}`;
+        }
+        return `https://${d}`;
+      });
+      cspFrameAncestors = `frame-ancestors 'self' ${domainUrls.join(' ')}`;
+    }
     
     // CSP directives for Turnstile and general content
     const cspDirectives = [
@@ -124,7 +140,8 @@ export default {
           'Content-Type': 'text/html',
           'Content-Security-Policy': cspDirectives,
           'X-Content-Type-Options': 'nosniff',
-          'X-Frame-Options': 'SAMEORIGIN',
+          // Note: X-Frame-Options is not needed when CSP frame-ancestors is set
+          // CSP frame-ancestors takes precedence and is more flexible
         }
       });
     }
@@ -140,7 +157,8 @@ export default {
     
     // Add security headers
     newResponse.headers.set('X-Content-Type-Options', 'nosniff');
-    newResponse.headers.set('X-Frame-Options', 'SAMEORIGIN'); // CSP frame-ancestors takes precedence
+    // Note: X-Frame-Options is not needed when CSP frame-ancestors is set
+    // CSP frame-ancestors takes precedence and is more flexible
 
     // Handle 404s for assets
     if (response.status === 404) {
