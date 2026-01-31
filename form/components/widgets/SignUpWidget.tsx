@@ -5,6 +5,32 @@ import { generateReferralCode, getReferralFromUrl } from '../utils/referral';
 
 import '../style/SignUpWidget.css';
 
+const useIframeHeight = () => {
+  useEffect(() => {
+    if (typeof window === "undefined" || window.parent === window) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.contentRect.height;
+        window.parent.postMessage(
+          { type: "tibroishIframeHeight", height },
+          "*",
+        );
+      }
+    });
+
+    observer.observe(document.body);
+
+    // Initial height
+    window.parent.postMessage(
+      { type: "tibroishIframeHeight", height: document.body.scrollHeight },
+      "*",
+    );
+
+    return () => observer.disconnect();
+  }, []);
+};
+
 interface Country {
   code: string;
   name: string;
@@ -108,6 +134,7 @@ const notifyParentSubmitSuccess = () => {
 };
 
 const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
+  useIframeHeight();
   // Get privacy URL from env var or prop, default to https://tibroish.bg/privacy-notice
   const effectivePrivacyUrl = privacyUrl ||
     (typeof process !== 'undefined' && process.env?.VITE_PRIVACY_URL) ||
