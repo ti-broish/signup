@@ -248,8 +248,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 return rest;
               });
             },
-            'error-callback': (error: any) => {
-              console.error('Turnstile error callback:', error);
+            'error-callback': () => {
+              console.error('Turnstile error callback:');
               setTurnstileToken(null);
               setErrors(prev => ({
                 ...prev,
@@ -1027,13 +1027,18 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     // Clear error immediately when user starts typing/checking to avoid "flashing" or stale errors
     setErrors(prev => ({ ...prev, [name]: '' }));
 
-    // For GDPR consent, clear error immediately when checked
-    if (name === 'gdprConsent' && finalValue === true) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.gdprConsent;
-        return newErrors;
-      });
+    // For GDPR consent, show/clear error immediately on toggle
+    if (name === 'gdprConsent') {
+      setTouched(prev => ({ ...prev, gdprConsent: true }));
+      if (finalValue === true) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.gdprConsent;
+          return newErrors;
+        });
+      } else {
+        setErrors(prev => ({ ...prev, gdprConsent: 'Трябва да приемете условията' }));
+      }
     }
   };
 
@@ -1639,7 +1644,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         <div className="form-section">
           <div className="form-group">
             <label>Роля</label>
-            <div className="radio-group">
+            <div style={{ flexDirection: 'row' }} className="radio-group">
               <label>
                 <input
                   type="radio"
@@ -1662,6 +1667,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
               </label>
             </div>
           </div>
+        </div>
+
+        <div className="form-section">
           {renderField('firstName', 'Име', 'text', {
             required: true,
             note: 'Името трябва да е на кирилица',
@@ -1905,7 +1913,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                   if (opt.val === 'distant' && !isAbroad) {
                     return (
                       <div key={opt.val} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
                           <input
                             type="checkbox"
                             name="travelAbility"
@@ -1916,8 +1924,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                           <span>{opt.lab}</span>
                         </label>
                         {formData.travelAbility === 'distant' && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1', minWidth: '300px', flexWrap: 'wrap' }}>
-                            <span style={{ whiteSpace: 'nowrap' }}>Кои области? <span className="required">*</span></span>
+                          <div style={{ display: 'flex', flex: '1', minWidth: '250px', flexWrap: 'wrap' }}>
                             <input
                               type="text"
                               id="distantOblasts"
@@ -1937,6 +1944,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                                 borderRadius: '4px'
                               }}
                             />
+                            <span className="required">*</span>
                           </div>
                         )}
                         {formData.travelAbility === 'distant' && errors.distantOblasts && touched.distantOblasts && (
@@ -1985,36 +1993,39 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           </div>
         </div>
 
-        {!isLocalDev && turnstileSiteKey && turnstileSiteKey.trim() !== '' && (
-          <div className="form-section">
-            <div className={`form-group ${errors.turnstile && touched.turnstile ? 'has-error' : ''}`}>
-              <div ref={turnstileRef} className="turnstile-widget"></div>
-              {errors.turnstile && touched.turnstile && (
-                <span className="error-message">{errors.turnstile}</span>
-              )}
+        {
+          !isLocalDev && turnstileSiteKey && turnstileSiteKey.trim() !== '' && (
+            <div className="form-section">
+              <div className={`form-group ${errors.turnstile && touched.turnstile ? 'has-error' : ''}`}>
+                <div ref={turnstileRef} className="turnstile-widget"></div>
+                {errors.turnstile && touched.turnstile && (
+                  <span className="error-message">{errors.turnstile}</span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         <div className="form-section">
           <div className={`form-group ${errors.gdprConsent && touched.gdprConsent ? 'has-error' : ''}`}>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="gdprConsent"
-                checked={formData.gdprConsent}
-                onChange={handleChange}
-                onBlur={() => handleBlur('gdprConsent')}
-              />
-              <span>
-                Съгласен/на съм с <a href={effectivePrivacyUrl} target="_blank">условията за съхраняване на лични данни</a> <span className="required">*</span>
-              </span>
-            </label>
-          </div>
-          <div className="gdpr-error-container">
-            {errors.gdprConsent && touched.gdprConsent && (
-              <span className="error-message">{errors.gdprConsent}</span>
-            )}
+            <div className="input-wrapper">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="gdprConsent"
+                  checked={formData.gdprConsent}
+                  onChange={handleChange}
+                  onBlur={() => handleBlur('gdprConsent')}
+                />
+                <span>
+                  Съгласен/на съм с <a href={effectivePrivacyUrl} target="_blank">условията за съхраняване на лични данни</a>
+                </span>
+                <span className="required">*</span>
+              </label>
+              {touched.gdprConsent && !formData.gdprConsent && errors.gdprConsent && (
+                <div className="validation-tooltip visible">{errors.gdprConsent}</div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2035,8 +2046,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         >
           Регистрирай се
         </button>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 };
 
