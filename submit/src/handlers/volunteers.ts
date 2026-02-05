@@ -2,10 +2,11 @@
  * Volunteers form submission handler
  */
 
-import { D1Database } from '@cloudflare/workers-types';
 import { validateTurnstileToken } from './turnstile';
 import { RateLimiter } from '../utils/rateLimit';
 import { Logger } from '../utils/logger';
+import { sendBrevoTemplateEmail } from './brevo';
+import { Env } from '../index';
 
 export interface VolunteerFormData {
   firstName: string;
@@ -30,17 +31,11 @@ export interface VolunteerFormData {
   referredBy?: string | null;
 }
 
-export interface Env {
-  DB: D1Database;
-  TURNSTILE_SECRET_KEY: string;
-  RATE_LIMIT_REQUESTS: string;
-  RATE_LIMIT_WINDOW_SECONDS: string;
-}
-
 export async function handleVolunteerSubmission(
   request: Request,
   env: Env,
-  logger: Logger
+  logger: Logger,
+  ctx: ExecutionContext
 ): Promise<Response> {
   const ipAddress = request.headers.get('CF-Connecting-IP') || 'unknown';
   const userAgent = request.headers.get('User-Agent') || 'unknown';
@@ -204,6 +199,17 @@ export async function handleVolunteerSubmission(
       email: formData.email,
       volunteerId: result.meta.last_row_id,
     });
+
+    // Send Brevo transactional email (fire-and-forget)
+    ctx.waitUntil(
+      sendBrevoTemplateEmail(
+        env.BREVO_API_KEY,
+        env.BREVO_TEMPLATE_ID,
+        { email: formData.email, name: `${formData.firstName} ${formData.lastName}` },
+        { FIRSTNAME: formData.firstName, REFERRAL_CODE: formData.referralCode },
+        logger
+      )
+    );
 
     return new Response(
       JSON.stringify({
