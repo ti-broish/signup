@@ -128,10 +128,7 @@
 .radio-group {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    background: #f9f9f9;
-    padding: 0.6rem;
-    border-radius: 8px;
+    gap: 1rem;
 }
 
 .radio-group label {
@@ -150,17 +147,13 @@
     height: 20px;
     accent-color: #3949ab;
     cursor: pointer;
+    background: none;
+    box-shadow: none;
+    outline: none;
 }
 
-/* Specific styling for the hierarchical list to make it look connected */
 .radio-group label {
-    padding: 0.4rem 0.6rem;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.radio-group label:hover {
-    background-color: #f0f2f9;
+    padding: 0;
 }
 
 .checkbox-label {
