@@ -64,7 +64,9 @@ export async function handleVolunteerSubmission(
     });
 
     // Validate required fields
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.egn) {
+    // EGN is only required for poll watchers ("Пазител на вота в секция")
+    const isEgnRequired = formData.role === 'Пазител на вота в секция';
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || (isEgnRequired && !formData.egn)) {
       logger.warn('Missing required fields', {
         ipAddress,
         missing: {
@@ -72,7 +74,7 @@ export async function handleVolunteerSubmission(
           lastName: !formData.lastName,
           email: !formData.email,
           phone: !formData.phone,
-          egn: !formData.egn,
+          egn: isEgnRequired && !formData.egn,
         }
       });
       return new Response(
@@ -81,7 +83,7 @@ export async function handleVolunteerSubmission(
           lastName: !formData.lastName,
           email: !formData.email,
           phone: !formData.phone,
-          egn: !formData.egn,
+          egn: isEgnRequired && !formData.egn,
         }}),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );

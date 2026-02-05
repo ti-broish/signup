@@ -192,7 +192,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-h-screen">
+    <div className="w-full">
       <SignUpWidget />
     </div>
   );
