@@ -1021,6 +1021,13 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     } else if (name === 'riskySections' || name === 'gdprConsent') {
       // Explicitly handle boolean checkboxes to ensure correct boolean value
       setFormData(prev => ({ ...prev, [name]: Boolean(finalValue) }));
+    } else if (name === 'role') {
+      setFormData(prev => ({
+        ...prev,
+        role: finalValue,
+        // Clear EGN when switching away from poll_watcher since the field is hidden
+        egn: finalValue === 'poll_watcher' ? prev.egn : ''
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: finalValue }));
     }
@@ -1697,8 +1704,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             note: 'Невалиден телефонен номер',
             autoComplete: 'tel'
           })}
-          {renderField('egn', 'ЕГН', 'text', {
-            required: formData.role === 'poll_watcher',
+          {formData.role === 'poll_watcher' && renderField('egn', 'ЕГН', 'text', {
+            required: true,
             maxLength: 10,
             autoComplete: 'off'
           })}
