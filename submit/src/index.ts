@@ -11,6 +11,8 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   RATE_LIMIT_REQUESTS: string;
   RATE_LIMIT_WINDOW_SECONDS: string;
+  BREVO_API_KEY?: string;
+  BREVO_TEMPLATE_ID?: string;
 }
 
 function getCorsHeaders(origin: string | null, allowedOrigins: string): HeadersInit {
@@ -33,7 +35,7 @@ function getCorsHeaders(origin: string | null, allowedOrigins: string): HeadersI
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin');
     const logger = new Logger({
@@ -53,7 +55,7 @@ export default {
     // Route handlers
     try {
       if (url.pathname === '/submit' && request.method === 'POST') {
-        const response = await handleVolunteerSubmission(request, env, logger);
+        const response = await handleVolunteerSubmission(request, env, logger, ctx);
         const headers = new Headers(response.headers);
         Object.entries(getCorsHeaders(origin, env.ALLOWED_ORIGINS)).forEach(
           ([key, value]) => {
