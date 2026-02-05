@@ -9,23 +9,21 @@ const useIframeHeight = () => {
   useEffect(() => {
     if (typeof window === "undefined" || window.parent === window) return;
 
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const height = entry.contentRect.height;
-        window.parent.postMessage(
-          { type: "tibroishIframeHeight", height },
-          "*",
-        );
-      }
-    });
+    const root = document.getElementById('root');
+    if (!root) return;
 
-    observer.observe(document.body);
+    const sendHeight = () => {
+      const height = root.scrollHeight;
+      window.parent.postMessage(
+        { type: "tibroishIframeHeight", height },
+        "*",
+      );
+    };
 
-    // Initial height
-    window.parent.postMessage(
-      { type: "tibroishIframeHeight", height: document.body.scrollHeight },
-      "*",
-    );
+    const observer = new ResizeObserver(() => sendHeight());
+    observer.observe(root);
+
+    sendHeight();
 
     return () => observer.disconnect();
   }, []);
@@ -510,34 +508,10 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             });
           }
 
-          // Also scroll top window to top (try multiple times to overcome interference)
-          const scrollParentToTop = () => {
-            try {
-              // Use window.top to get the topmost window in the frame hierarchy
-              const targetWindow = (window.top && window.top !== window) ? window.top :
-                (window.parent !== window ? window.parent : null);
-
-              if (targetWindow) {
-                // Use immediate scroll (no smooth behavior) to avoid interference
-                targetWindow.scrollTo({
-                  top: 0,
-                  left: 0,
-                  behavior: 'auto'
-                });
-                // Also try the simple syntax as fallback
-                targetWindow.scrollTo(0, 0);
-              }
-            } catch (e) {
-              // Cross-origin restriction - can't access parent/top window
-              // This is expected in some iframe scenarios
-            }
-          };
-
-          // Try scrolling immediately and multiple times with delays
-          setTimeout(scrollParentToTop, 100);
-          setTimeout(scrollParentToTop, 400);
-          setTimeout(scrollParentToTop, 800);
-          setTimeout(scrollParentToTop, 1200);
+          // Ask parent to scroll to top via postMessage (cross-origin safe)
+          if (window.parent !== window) {
+            window.parent.postMessage({ type: 'tibroishScrollToTop' }, '*');
+          }
         } catch (e) {
           // Ignore scroll errors
           console.warn('Scroll to top failed:', e);
