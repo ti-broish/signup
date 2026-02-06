@@ -679,6 +679,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       const isSofia = formData.region?.code === 'sofia-merged' || (regionCode && SOFIA_MIR_CODES.includes(regionCode));
 
       let data: Settlement[];
+      let cityRegionMap: Map<string, Region> | null = null;
       if (isSofia) {
         // Fetch from all 3 Sofia MIRs and merge city regions
         const allResults = await Promise.all(
@@ -689,7 +690,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         );
 
         // Build city region → MIR mapping and merge settlements
-        const cityRegionMap = new Map<string, Region>();
+        cityRegionMap = new Map<string, Region>();
         const mergedById = new Map<number, Settlement>();
 
         for (const { code, settlements: mirSettlements } of allResults) {
@@ -740,14 +741,18 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           cityRegion
         }));
       } else if (data.length > 1 && !persistedSettlementId) {
-        // Auto-select if there's exactly one city among multiple settlements
+        // Auto-select the settlement with city regions (districts) if exactly one has them,
+        // or the single city if there's exactly one
+        const withCityRegions = data.filter(s => s.cityRegions.length > 1);
         const cities = data.filter(s => s.name.startsWith('гр.'));
-        if (cities.length === 1) {
-          const settlement = cities[0];
-          const cityRegion = settlement.cityRegions.length === 1 ? settlement.cityRegions[0] : null;
+        const autoSelect = withCityRegions.length === 1
+          ? withCityRegions[0]
+          : cities.length === 1 ? cities[0] : null;
+        if (autoSelect) {
+          const cityRegion = autoSelect.cityRegions.length === 1 ? autoSelect.cityRegions[0] : null;
           setFormData(prev => ({
             ...prev,
-            settlement,
+            settlement: autoSelect,
             cityRegion
           }));
         }
@@ -761,6 +766,13 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             matchedCityRegion = matchedSettlement.cityRegions.find(
               cr => cr.name === persistedData.cityRegion?.name
             ) || null;
+          }
+          // Resolve actual MIR from restored city region (for Sofia)
+          if (matchedCityRegion && isSofia) {
+            const mirRegion = cityRegionMap?.get(matchedCityRegion.code);
+            if (mirRegion) {
+              setActualRegionForApi(mirRegion);
+            }
           }
           setFormData(prev => ({
             ...prev,
