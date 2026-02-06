@@ -2,7 +2,7 @@
   "name": "signup-submit",
   "main": "src/index.ts",
   "account_id": "579692914a155ab268c22b814cbf8a05",
-  "compatibility_date": "2024-01-01",
+  "compatibility_date": "2024-09-23",
   "workers_dev": false,
   "preview_urls": false,
   "d1_databases": [
@@ -10,6 +10,12 @@
       "binding": "DB",
       "database_name": "signup-db-local",
       "database_id": "local"
+    }
+  ],
+  "services": [
+    {
+      "binding": "EXPORT",
+      "service": "signup-export"
     }
   ],
   "persist": {
@@ -39,12 +45,19 @@
           "database_id": "922e6548-6b80-4762-aee5-bdc00fc80432"
         }
       ],
+      "services": [
+        {
+          "binding": "EXPORT",
+          "service": "signup-export-staging"
+        }
+      ],
       "vars": {
         "ALLOWED_ORIGINS": "https://signup-staging.tibroish.bg",
         "RATE_LIMIT_REQUESTS": "5",
         "RATE_LIMIT_WINDOW_SECONDS": "3600"
       },
       "observability": {
+        "enabled": true,
         "logs": {
           "enabled": true,
           "invocation_logs": true
@@ -69,10 +82,23 @@
           "database_id": "929d8b25-5dce-4e27-a89a-030bf56a9c1f"
         }
       ],
+      "services": [
+        {
+          "binding": "EXPORT",
+          "service": "signup-export-production"
+        }
+      ],
       "vars": {
         "ALLOWED_ORIGINS": "https://signup.tibroish.bg",
         "RATE_LIMIT_REQUESTS": "5",
         "RATE_LIMIT_WINDOW_SECONDS": "3600"
+      },
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true
+        }
       }
     }
   }

@@ -1,87 +1,37 @@
 /**
- * Cloudflare Worker for exporting volunteer submissions to Google Sheets
- * Runs on a cron schedule (every 6 hours by default)
+ * Cloudflare Worker for exporting volunteer submissions to Google Sheets.
+ *
+ * Called via RPC service binding from the submit worker — not exposed externally.
+ * Each volunteer submission triggers a single row append to the spreadsheet.
  */
 
-import { D1Database } from '@cloudflare/workers-types';
-import { exportToGoogleSheets } from './handlers/export';
+import { WorkerEntrypoint } from 'cloudflare:workers';
+import { appendRowToSheet, VolunteerExportData } from './handlers/export';
 import { Logger } from './utils/logger';
 
 export interface Env {
-  DB: D1Database;
-  GOOGLE_SHEETS_API_KEY: string; // Service account JSON as string (use Workers Secrets)
+  GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON: string;
   GOOGLE_SHEETS_SPREADSHEET_ID: string;
-  GOOGLE_SHEETS_RANGE: string;
+  GOOGLE_SHEETS_SHEET_NAME: string;
 }
 
-export default {
-  /**
-   * Scheduled event handler (cron trigger)
-   */
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    const logger = new Logger({
-      event: 'scheduled',
-      cron: event.cron,
-      scheduledTime: event.scheduledTime.toString(),
-    });
+export type { VolunteerExportData };
 
-    logger.info('Starting scheduled export to Google Sheets');
+export default class ExportWorker extends WorkerEntrypoint<Env> {
+  async fetch(): Promise<Response> {
+    return new Response('Not found', { status: 404 });
+  }
 
-    try {
-      await exportToGoogleSheets(env, logger);
-      logger.info('Scheduled export completed successfully');
-    } catch (error) {
-      logger.error('Scheduled export failed', error);
-      // Don't throw - let the execution complete
-      // Errors will be logged and visible in Cloudflare dashboard
-    }
-  },
+  async appendRow(volunteer: VolunteerExportData): Promise<void> {
+    const logger = new Logger({ source: 'rpc', volunteerId: volunteer.id });
+    logger.info('Received export request');
 
-  /**
-   * HTTP handler for manual triggers (optional)
-   * Allows manual export via HTTP request for testing
-   */
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const logger = new Logger({
-      path: new URL(request.url).pathname,
-      method: request.method,
-    });
-
-    // Only allow POST for manual triggers
-    if (request.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ error: 'Method not allowed. Use POST to trigger export.' }),
-        {
-          status: 405,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    try {
-      await exportToGoogleSheets(env, logger);
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Export completed successfully',
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    } catch (error) {
-      logger.error('Manual export failed', error);
-      return new Response(
-        JSON.stringify({
-          error: 'Export failed',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-  },
-};
+    await appendRowToSheet(
+      this.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON,
+      this.env.GOOGLE_SHEETS_SPREADSHEET_ID,
+      this.env.GOOGLE_SHEETS_SHEET_NAME || 'Sheet1',
+      volunteer,
+      logger
+    );
+  }
+}
