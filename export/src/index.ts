@@ -18,6 +18,10 @@ export interface Env {
 export type { VolunteerExportData };
 
 export default class ExportWorker extends WorkerEntrypoint<Env> {
+  async fetch(): Promise<Response> {
+    return new Response('Not found', { status: 404 });
+  }
+
   async appendRow(volunteer: VolunteerExportData): Promise<void> {
     const logger = new Logger({ source: 'rpc', volunteerId: volunteer.id });
     logger.info('Received export request');
