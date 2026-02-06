@@ -735,13 +735,20 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           cityRegion
         }));
       } else if (data.length > 1 && !persistedSettlementId) {
-        // Auto-select the settlement with city regions (districts) if exactly one has them,
+        // Auto-select the settlement with the most city regions (districts),
         // or the single city if there's exactly one
         const withCityRegions = data.filter(s => s.cityRegions.length > 1);
         const cities = data.filter(s => s.name.startsWith('гр.'));
-        const autoSelect = withCityRegions.length === 1
-          ? withCityRegions[0]
-          : cities.length === 1 ? cities[0] : null;
+        let autoSelect: Settlement | null = null;
+        if (withCityRegions.length === 1) {
+          autoSelect = withCityRegions[0];
+        } else if (withCityRegions.length > 1) {
+          // Multiple settlements with city regions (e.g. merged Sofia MIRs where
+          // a village like с. Яна spans two MIRs) — pick the one with the most
+          autoSelect = withCityRegions.reduce((a, b) => a.cityRegions.length >= b.cityRegions.length ? a : b);
+        } else if (cities.length === 1) {
+          autoSelect = cities[0];
+        }
         if (autoSelect) {
           const cityRegion = autoSelect.cityRegions.length === 1 ? autoSelect.cityRegions[0] : null;
           setFormData(prev => ({
