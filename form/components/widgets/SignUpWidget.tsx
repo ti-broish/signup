@@ -2202,11 +2202,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           disabled={
             !formData.gdprConsent ||
             (!isLocalDev && turnstileSiteKey && turnstileSiteKey.trim() !== '' && !turnstileToken) ||
-            // Only check errors for fields that have been touched/blurred
-            Object.keys(errors).some(key => {
-              const fieldKey = key as keyof TouchedFields;
-              return touched[fieldKey] && errors[key];
-            })
+            Object.values(errors).some(error => !!error)
           }
         >
           Регистрирай се
