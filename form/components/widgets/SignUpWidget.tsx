@@ -141,9 +141,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   const BULGARIA_ID = '000'; // ID за "България"
   const STORAGE_KEY = 'signup-form-draft';
 
-  // Sofia MIR detection: matches "София" but not "Софийска" (Sofia Province)
-  const isSofiaMirRegion = (region: Region) =>
-    region.name.includes('София') && !region.name.includes('Софийска');
+  // Sofia MIR region codes (stable identifiers)
+  const SOFIA_MIR_CODES = ['23', '24', '25'];
+  const isSofiaMirRegion = (region: Region) => SOFIA_MIR_CODES.includes(region.code);
 
   // Disable Turnstile in local development
   const isLocalDev = typeof window !== 'undefined' && (
@@ -582,24 +582,32 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       const nonSofiaRegions = data.filter(r => !isSofiaMirRegion(r));
 
       if (sofiaRegions.length > 1) {
-        const allSofiaMunicipalities: Municipality[] = [];
+        const seenMunicipalityCodes = new Set<string>();
+        const uniqueSofiaMunicipalities: Municipality[] = [];
         const municipalityToRegionMap = new Map<string, Region>();
 
         for (const region of sofiaRegions) {
           if (region.municipalities) {
             for (const muni of region.municipalities) {
-              allSofiaMunicipalities.push(muni);
-              municipalityToRegionMap.set(muni.code, region);
+              // Map every municipality code to its first MIR region (for API calls)
+              if (!municipalityToRegionMap.has(muni.code)) {
+                municipalityToRegionMap.set(muni.code, region);
+              }
+              // Deduplicate municipalities (all 3 MIRs share "Столична")
+              if (!seenMunicipalityCodes.has(muni.code)) {
+                seenMunicipalityCodes.add(muni.code);
+                uniqueSofiaMunicipalities.push(muni);
+              }
             }
           }
         }
 
-        allSofiaMunicipalities.sort((a, b) => a.name.localeCompare(b.name, 'bg'));
+        uniqueSofiaMunicipalities.sort((a, b) => a.name.localeCompare(b.name, 'bg'));
 
         const merged: Region = {
           code: 'sofia-merged',
           name: 'София-град',
-          municipalities: allSofiaMunicipalities
+          municipalities: uniqueSofiaMunicipalities
         };
 
         setMergedSofiaRegion(merged);
@@ -686,6 +694,18 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           settlement,
           cityRegion
         }));
+      } else if (data.length > 1 && !persistedSettlementId) {
+        // Auto-select if there's exactly one city among multiple settlements
+        const cities = data.filter(s => s.name.startsWith('гр.'));
+        if (cities.length === 1) {
+          const settlement = cities[0];
+          const cityRegion = settlement.cityRegions.length === 1 ? settlement.cityRegions[0] : null;
+          setFormData(prev => ({
+            ...prev,
+            settlement,
+            cityRegion
+          }));
+        }
       } else if (persistedSettlementId) {
         // Match persisted settlement
         const matchedSettlement = data.find(s => s.id === persistedSettlementId);
