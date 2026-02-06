@@ -213,6 +213,37 @@ export async function handleVolunteerSubmission(
       )
     );
 
+    // Export to Google Sheets via service binding (fire-and-forget)
+    if (env.EXPORT) {
+      ctx.waitUntil(
+        env.EXPORT.appendRow({
+          id: result.meta.last_row_id,
+          firstName: formData.firstName,
+          middleName: formData.middleName || null,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          egn: formData.egn,
+          country: formData.country || 'България',
+          region: formData.region || null,
+          municipality: formData.municipality || null,
+          settlement: formData.settlement || null,
+          cityRegion: formData.cityRegion || null,
+          pollingStation: formData.pollingStation || null,
+          travelAbility: formData.travelAbility,
+          distantOblasts: formData.distantOblasts || null,
+          riskySections: formData.riskySections,
+          gdprConsent: formData.gdprConsent,
+          role: formData.role,
+          referralCode: formData.referralCode,
+          referredBy: formData.referredBy || null,
+          createdAt: new Date().toISOString(),
+        }).catch((error) => {
+          logger.error('Export to Google Sheets failed', error);
+        })
+      );
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

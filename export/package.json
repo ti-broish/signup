@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --config wrangler.jsonc",
-    "deploy": "wrangler deploy --config wrangler.jsonc",
+    "deploy": "echo 'Error: Please use deploy:staging or deploy:production' && exit 1",
+    "deploy:staging": "wrangler deploy --env staging --config wrangler.jsonc",
+    "deploy:production": "wrangler deploy --env production --config wrangler.jsonc",
     "build": "tsc --noEmit"
   },
   "devDependencies": {

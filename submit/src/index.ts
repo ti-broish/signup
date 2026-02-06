@@ -13,6 +13,9 @@ export interface Env {
   RATE_LIMIT_WINDOW_SECONDS: string;
   BREVO_API_KEY?: string;
   BREVO_TEMPLATE_ID?: string;
+  EXPORT?: {
+    appendRow(volunteer: Record<string, unknown>): Promise<void>;
+  };
 }
 
 function getCorsHeaders(origin: string | null, allowedOrigins: string): HeadersInit {

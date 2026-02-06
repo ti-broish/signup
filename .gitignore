@@ -40,3 +40,5 @@ dist-ssr
 # Testing
 coverage
 .nyc_output
+
+.dev.vars

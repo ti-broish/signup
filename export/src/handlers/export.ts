@@ -1,155 +1,161 @@
 /**
  * Google Sheets export handler
- * 
- * Uses Google Sheets API v4 REST API directly.
- * Requires service account authentication via JWT.
+ *
+ * Appends a single volunteer row to Google Sheets.
+ * Uses Google Sheets API v4 with service account JWT authentication
+ * via Web Crypto API (no external dependencies).
  */
 
-import { D1Database } from '@cloudflare/workers-types';
 import { Logger } from '../utils/logger';
 
-export interface Env {
-  DB: D1Database;
-  GOOGLE_SHEETS_API_KEY: string; // Service account JSON as string (use Workers Secrets)
-  GOOGLE_SHEETS_SPREADSHEET_ID: string;
-  GOOGLE_SHEETS_RANGE: string;
+export interface VolunteerExportData {
+  id: number;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+  email: string;
+  phone: string;
+  egn: string;
+  country: string;
+  region: string | null;
+  municipality: string | null;
+  settlement: string | null;
+  cityRegion: string | null;
+  pollingStation: string | null;
+  travelAbility: string;
+  distantOblasts: string | null;
+  riskySections: boolean;
+  gdprConsent: boolean;
+  role: string;
+  referralCode: string;
+  referredBy: string | null;
+  createdAt: string;
 }
 
-/**
- * Get access token for Google Sheets API using service account
- * Note: This is a simplified version. For production, implement proper JWT signing
- * using Web Crypto API or use a Cloudflare-compatible JWT library.
- */
-async function getGoogleSheetsAccessToken(serviceAccountJson: string): Promise<string> {
-  // Parse service account JSON
-  const serviceAccount = JSON.parse(serviceAccountJson);
-  
-  // For now, return a placeholder
-  // TODO: Implement JWT signing with Web Crypto API
-  // See: https://developers.cloudflare.com/workers/examples/jwt-signing/
-  // or use a library like 'jose' that works in Cloudflare Workers
-  
-  throw new Error(
-    'JWT signing not yet implemented. ' +
-    'Use Workers Secrets to store service account JSON and implement JWT signing ' +
-    'or use Google OAuth2 flow for authentication.'
+function base64url(data: string): string {
+  return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function getGoogleAccessToken(serviceAccountJson: string): Promise<string> {
+  const sa = JSON.parse(serviceAccountJson);
+
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const headerB64 = base64url(JSON.stringify(header));
+  const payloadB64 = base64url(JSON.stringify(payload));
+  const unsignedToken = `${headerB64}.${payloadB64}`;
+
+  // Import private key from PEM
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '');
+  const keyBuffer = Uint8Array.from(atob(pemBody), (c: string) => c.charCodeAt(0));
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    keyBuffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
   );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(unsignedToken)
+  );
+
+  const signatureB64 = base64url(String.fromCharCode(...new Uint8Array(signature)));
+  const jwt = `${unsignedToken}.${signatureB64}`;
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Google token exchange failed: ${await response.text()}`);
+  }
+
+  const result = (await response.json()) as { access_token: string };
+  return result.access_token;
 }
 
-export async function exportToGoogleSheets(
-  env: Env,
+export async function appendRowToSheet(
+  serviceAccountJson: string,
+  spreadsheetId: string,
+  sheetName: string,
+  volunteer: VolunteerExportData,
   logger: Logger
 ): Promise<void> {
-  try {
-    // Query all volunteers from database
-    const { results } = await env.DB.prepare(
-      'SELECT * FROM volunteers ORDER BY createdAt DESC'
-    ).all<{
-      id: number;
-      firstName: string;
-      middleName: string | null;
-      lastName: string;
-      email: string;
-      phone: string;
-      egn: string;
-      country: string | null;
-      region: string | null;
-      municipality: string | null;
-      settlement: string | null;
-      cityRegion: string | null;
-      pollingStation: string | null;
-      travelAbility: string;
-      gdprConsent: number;
-      role: string;
-      createdAt: string;
-    }>();
-
-    if (!results || results.length === 0) {
-      logger.info('No data to export', { count: 0 });
-      return;
-    }
-
-    // Format data for Google Sheets
-    const rows = results.map((volunteer) => [
-      volunteer.id.toString(),
-      volunteer.firstName,
-      volunteer.middleName || '',
-      volunteer.lastName,
-      volunteer.email,
-      volunteer.phone,
-      volunteer.egn,
-      volunteer.country ? JSON.parse(volunteer.country).name : '',
-      volunteer.region ? JSON.parse(volunteer.region).name : '',
-      volunteer.municipality ? JSON.parse(volunteer.municipality).name : '',
-      volunteer.settlement ? JSON.parse(volunteer.settlement).name : '',
-      volunteer.cityRegion ? JSON.parse(volunteer.cityRegion).name : '',
-      volunteer.pollingStation
-        ? typeof volunteer.pollingStation === 'string'
-          ? volunteer.pollingStation
-          : JSON.parse(volunteer.pollingStation).place
-        : '',
-      volunteer.travelAbility,
-      volunteer.role,
-      volunteer.gdprConsent ? 'Yes' : 'No',
-      volunteer.createdAt,
-    ]);
-
-    // Add header row
-    const headerRow = [
-      'ID',
-      'First Name',
-      'Middle Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'EGN',
-      'Country',
-      'Region',
-      'Municipality',
-      'Settlement',
-      'City Region',
-      'Polling Station',
-      'Travel Ability',
-      'Role',
-      'GDPR Consent',
-      'Created At',
-    ];
-
-    const allRows = [headerRow, ...rows];
-
-    // Get access token
-    const accessToken = await getGoogleSheetsAccessToken(env.GOOGLE_SHEETS_API_KEY);
-
-    // Append rows to spreadsheet using REST API
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_SHEETS_SPREADSHEET_ID}/values/${env.GOOGLE_SHEETS_RANGE}:append?valueInputOption=RAW`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          values: allRows,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.text();
-      logger.error('Google Sheets API error', new Error(error));
-      throw new Error(`Google Sheets API error: ${error}`);
-    }
-
-    const result = await response.json<{ updates: { updatedRows: number } }>();
-
-    logger.info('Export successful', {
-      rowCount: rows.length,
-      updatedRows: result.updates.updatedRows,
-      spreadsheetId: env.GOOGLE_SHEETS_SPREADSHEET_ID,
+  if (!serviceAccountJson || !spreadsheetId) {
+    logger.info('Google Sheets not configured, skipping export', {
+      volunteerId: volunteer.id,
+      hasServiceAccount: !!serviceAccountJson,
+      hasSpreadsheetId: !!spreadsheetId,
     });
-  } catch (error) {
-    logger.error('Error exporting data', error);
-    throw error; // Re-throw to be handled by caller
+    return;
   }
+
+  const accessToken = await getGoogleAccessToken(serviceAccountJson);
+
+  const row = [
+    String(volunteer.id),
+    volunteer.firstName,
+    volunteer.middleName || '',
+    volunteer.lastName,
+    volunteer.email,
+    volunteer.phone,
+    volunteer.egn || '',
+    volunteer.country || '',
+    volunteer.region || '',
+    volunteer.municipality || '',
+    volunteer.settlement || '',
+    volunteer.cityRegion || '',
+    volunteer.pollingStation || '',
+    volunteer.travelAbility,
+    volunteer.gdprConsent ? '1' : '0',
+    volunteer.role,
+    volunteer.referralCode,
+    volunteer.referredBy || '',
+    volunteer.createdAt,
+    volunteer.riskySections ? '1' : '0',
+    volunteer.distantOblasts || '',
+  ];
+
+  const range = `${sheetName}!A:U`;
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ values: [row] }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Google Sheets API error: ${error}`);
+  }
+
+  logger.info('Row appended to Google Sheets', {
+    volunteerId: volunteer.id,
+    spreadsheetId,
+  });
 }
