@@ -141,6 +141,10 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   const BULGARIA_ID = '000'; // ID за "България"
   const STORAGE_KEY = 'signup-form-draft';
 
+  // Sofia MIR detection: matches "София" but not "Софийска" (Sofia Province)
+  const isSofiaMirRegion = (region: Region) =>
+    region.name.includes('София') && !region.name.includes('Софийска');
+
   // Disable Turnstile in local development
   const isLocalDev = typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' ||
@@ -188,6 +192,12 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [pollingStations, setPollingStations] = useState<PollingStation[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
+
+  // Sofia MIR merge state
+  const [sofiaMunicipalityToRegion, setSofiaMunicipalityToRegion] = useState<Map<string, Region>>(new Map());
+  const [mergedSofiaRegion, setMergedSofiaRegion] = useState<Region | null>(null);
+  const [displayRegions, setDisplayRegions] = useState<Region[]>([]);
+  const [actualRegionForApi, setActualRegionForApi] = useState<Region | null>(null);
 
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string>('');
@@ -386,7 +396,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       // Only save if form has some data
       const hasData = data.firstName || data.lastName || data.email || data.phone || data.egn;
       if (hasData) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        // Save actual MIR region instead of merged Sofia for proper restoration
+        const dataToSave = data.region?.code === 'sofia-merged' && actualRegionForApi
+          ? { ...data, region: actualRegionForApi }
+          : data;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -431,14 +445,29 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         if (persistedData.region?.code) {
           const matchedRegion = regions.find(r => r.code === persistedData.region?.code);
           if (matchedRegion) {
-            restoredData.region = matchedRegion;
-            // Match municipality if region has municipalities
-            if (persistedData.municipality?.code && matchedRegion.municipalities) {
-              const matchedMunicipality = matchedRegion.municipalities.find(
-                m => m.code === persistedData.municipality?.code
-              );
-              if (matchedMunicipality) {
-                restoredData.municipality = matchedMunicipality;
+            // Check if this is a Sofia MIR region — display as merged Sofia
+            if (isSofiaMirRegion(matchedRegion) && mergedSofiaRegion) {
+              restoredData.region = mergedSofiaRegion;
+              setActualRegionForApi(matchedRegion);
+              // Match municipality from merged Sofia's municipalities
+              if (persistedData.municipality?.code && mergedSofiaRegion.municipalities) {
+                const matchedMunicipality = mergedSofiaRegion.municipalities.find(
+                  m => m.code === persistedData.municipality?.code
+                );
+                if (matchedMunicipality) {
+                  restoredData.municipality = matchedMunicipality;
+                }
+              }
+            } else {
+              restoredData.region = matchedRegion;
+              // Match municipality if region has municipalities
+              if (persistedData.municipality?.code && matchedRegion.municipalities) {
+                const matchedMunicipality = matchedRegion.municipalities.find(
+                  m => m.code === persistedData.municipality?.code
+                );
+                if (matchedMunicipality) {
+                  restoredData.municipality = matchedMunicipality;
+                }
               }
             }
           }
@@ -465,8 +494,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             : undefined;
 
           // Fetch settlements immediately (don't wait for useEffect)
-          // Pass region code explicitly to avoid timing issues with state updates
-          fetchSettlements(restoredData.municipality.code, persistedSettlementId, restoredData.region.code).then(() => {
+          // Pass region code explicitly — use persisted (actual MIR) code, not merged Sofia code
+          const regionCodeForFetch = persistedData.region?.code || restoredData.region.code;
+          fetchSettlements(restoredData.municipality.code, persistedSettlementId, regionCodeForFetch).then(() => {
             // After settlements are loaded and matched, fetch polling stations if needed
             if (persistedPollingStationId && persistedSettlementId) {
               // Use the persisted settlement ID directly
@@ -482,7 +512,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         }
       }
     }
-  }, [regions, countries]);
+  }, [regions, countries, mergedSofiaRegion]);
 
   // Scroll to top when success message appears (only once)
   useEffect(() => {
@@ -546,6 +576,41 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       setLoading(true);
       const data = await dataApi.get<never, Region[]>('election_regions');
       setRegions(data);
+
+      // Merge Sofia MIR regions (23, 24, 25) into a single "София-град" option
+      const sofiaRegions = data.filter(r => isSofiaMirRegion(r));
+      const nonSofiaRegions = data.filter(r => !isSofiaMirRegion(r));
+
+      if (sofiaRegions.length > 1) {
+        const allSofiaMunicipalities: Municipality[] = [];
+        const municipalityToRegionMap = new Map<string, Region>();
+
+        for (const region of sofiaRegions) {
+          if (region.municipalities) {
+            for (const muni of region.municipalities) {
+              allSofiaMunicipalities.push(muni);
+              municipalityToRegionMap.set(muni.code, region);
+            }
+          }
+        }
+
+        allSofiaMunicipalities.sort((a, b) => a.name.localeCompare(b.name, 'bg'));
+
+        const merged: Region = {
+          code: 'sofia-merged',
+          name: 'София-град',
+          municipalities: allSofiaMunicipalities
+        };
+
+        setMergedSofiaRegion(merged);
+        setSofiaMunicipalityToRegion(municipalityToRegionMap);
+        setDisplayRegions([...nonSofiaRegions, merged].sort((a, b) =>
+          a.name.localeCompare(b.name, 'bg')
+        ));
+      } else {
+        setDisplayRegions(data);
+      }
+
       if (data.length === 1) {
         setFormData(prev => ({ ...prev, region: data[0] }));
       }
@@ -609,7 +674,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
 
   const fetchSettlements = async (municipalityId: string, persistedSettlementId?: number, regionCode?: string) => {
     try {
-      const regionId = regionCode || formData.region?.code;
+      const regionId = regionCode || actualRegionForApi?.code || formData.region?.code;
       const data = await dataApi.get<never, Settlement[]>(`towns?country=${BULGARIA_ID}&election_region=${regionId}&municipality=${municipalityId}`);
       setSettlements(data);
 
@@ -932,7 +997,14 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     }
 
     if (name === 'region') {
-      const region = regions.find(r => r.code === value) || null;
+      // Handle merged Sofia region
+      let region: Region | null;
+      if (value === 'sofia-merged' && mergedSofiaRegion) {
+        region = mergedSofiaRegion;
+      } else {
+        region = regions.find(r => r.code === value) || null;
+      }
+      setActualRegionForApi(null);
       setFormData(prev => ({
         ...prev,
         region,
@@ -951,6 +1023,10 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       }));
     } else if (name === 'municipality') {
       const municipality = municipalities.find(m => m.code === value) || null;
+      // Resolve actual MIR region for Sofia municipalities
+      if (municipality && sofiaMunicipalityToRegion.has(municipality.code)) {
+        setActualRegionForApi(sofiaMunicipalityToRegion.get(municipality.code) || null);
+      }
       setFormData(prev => ({
         ...prev,
         municipality,
@@ -1107,7 +1183,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         phone: formData.phone,
         egn: formData.egn,
         country: countryString,
-        region: formData.region?.name || null,
+        region: actualRegionForApi?.name || formData.region?.name || null,
         municipality: formData.municipality?.name || null,
         settlement: formData.settlement?.name || null,
         cityRegion: formData.cityRegion?.name || null,
@@ -1714,7 +1790,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         <div className="form-section">
           {renderField('region', 'Област', 'select', {
             required: true,
-            items: regions,
+            items: displayRegions,
             keyField: 'code',
             autoComplete: 'off'
           })}
