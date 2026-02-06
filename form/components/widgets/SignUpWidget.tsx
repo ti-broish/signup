@@ -1036,10 +1036,10 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       // everything above it appears checked, everything below unchecked.
       const targetLevel = value;
       const isAbroad = formData.region?.code === ABROAD_ID;
-      const isSofia = formData.region?.name?.includes('София') || formData.region?.name?.includes('Sofia');
+      const isSofiaGrad = formData.region?.code === 'sofia-merged';
       const hierarchy = isAbroad
         ? ['no', 'settlement', 'region', 'distant']
-        : (isSofia
+        : (isSofiaGrad
           ? ['no', 'settlement', 'municipality', 'distant']
           : ['no', 'settlement', 'municipality', 'region', 'distant']);
 
@@ -2012,7 +2012,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             <div className="radio-group">
               {(() => {
                 const isAbroad = formData.region?.code === ABROAD_ID;
-                const isSofia = formData.region?.name?.includes('София') || formData.region?.name?.includes('Sofia');
+                const isSofiaGrad = formData.region?.code === 'sofia-merged';
                 const travelOptions = isAbroad
                   ? [
                     { val: 'no', lab: 'Само където гласувам' },
@@ -2044,7 +2044,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                         ? `В рамките на община ${formData.municipality.name}`
                         : 'В рамките на общината'
                     },
-                    ...(isSofia ? [] : [{
+                    ...(isSofiaGrad ? [] : [{
                       val: 'region',
                       lab: formData.region?.name
                         ? (formData.region.name.includes('МИР')
@@ -2058,7 +2058,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 return travelOptions.map((opt, index, arr) => {
                   const hierarchy = isAbroad
                     ? ['no', 'settlement', 'region', 'distant']
-                    : (isSofia
+                    : (isSofiaGrad
                       ? ['no', 'settlement', 'municipality', 'distant']
                       : ['no', 'settlement', 'municipality', 'region', 'distant']);
                   const currentIndex = hierarchy.indexOf(opt.val);
