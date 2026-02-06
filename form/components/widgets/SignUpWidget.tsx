@@ -662,13 +662,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     }
 
     if (formData.municipality && formData.region && formData.region.code !== ABROAD_ID) {
-      // Check if we have persisted settlement data to restore
-      const persistedData = loadPersistedFormData();
-      const persistedSettlementId = persistedData?.settlement && typeof persistedData.settlement === 'object'
-        ? persistedData.settlement.id
-        : undefined;
-
-      fetchSettlements(formData.municipality.code, persistedSettlementId);
+      fetchSettlements(formData.municipality.code);
     } else if (formData.region?.code !== ABROAD_ID) {
       setSettlements([]);
     }
