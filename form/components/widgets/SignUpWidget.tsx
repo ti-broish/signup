@@ -712,11 +712,6 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           }
         }
 
-        // Sort city regions by code within each settlement
-        for (const s of mergedById.values()) {
-          s.cityRegions.sort((a, b) => a.code.localeCompare(b.code));
-        }
-
         setSofiaCityRegionToMir(cityRegionMap);
         data = Array.from(mergedById.values());
       } else {
@@ -1945,7 +1940,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                   required
                 >
                   <option value="">Изберете...</option>
-                  {formData.settlement?.cityRegions.map(s => (
+                  {[...(formData.settlement?.cityRegions || [])].sort((a, b) =>
+                    a.name.localeCompare(b.name, 'bg')
+                  ).map(s => (
                     <option key={s.name} value={s.name}>{s.name}</option>
                   ))}
                 </select>
