@@ -1913,7 +1913,13 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                   required
                 >
                   <option value="">Изберете...</option>
-                  {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {[...settlements].sort((a, b) => {
+                    const isACity = a.name.startsWith('гр.');
+                    const isBCity = b.name.startsWith('гр.');
+                    if (isACity && !isBCity) return -1;
+                    if (!isACity && isBCity) return 1;
+                    return a.name.localeCompare(b.name, 'bg');
+                  }).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               )}
               {errors.settlement && touched.settlement && (
