@@ -15,11 +15,25 @@
     "staging": {
       "vars": {
         "GOOGLE_SHEETS_SHEET_NAME": "Staging"
+      },
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true
+        }
       }
     },
     "production": {
       "vars": {
         "GOOGLE_SHEETS_SHEET_NAME": "new"
+      },
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true
+        }
       }
     }
   }

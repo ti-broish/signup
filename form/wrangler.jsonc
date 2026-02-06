@@ -39,6 +39,13 @@
         "VITE_FORM_URL": "https://signup-staging.tibroish.bg",
         "VITE_PRIVACY_URL": "https://tibroish.bg/privacy-notice",
         "VITE_ALLOWED_IFRAME_DOMAINS": "d1t.tibroish.bg"
+      },
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true
+        }
       }
     },
     "production": {
@@ -57,6 +64,13 @@
         "VITE_FORM_URL": "https://signup.tibroish.bg",
         "VITE_PRIVACY_URL": "https://tibroish.bg/privacy-notice",
         "VITE_ALLOWED_IFRAME_DOMAINS": "tibroish.bg,dabulgaria.bg"
+      },
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true
+        }
       }
     },
     "development": {
