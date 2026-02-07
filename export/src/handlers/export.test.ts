@@ -118,19 +118,19 @@ describe('appendRowToSheet', () => {
       '',                             // cityRegion (null)
       '',                             // pollingStation (null)
       'Не',                           // travelAbility
-      '1',                            // gdprConsent (true)
+      'TRUE',                          // gdprConsent (true)
       'Пазител на вота в секция',     // role
       'ABC123',                       // referralCode
       '',                             // referredBy (null)
       '2026-01-01 00:00:00',          // createdAt
-      '0',                            // riskySections (false)
+      'FALSE',                         // riskySections (false)
       '',                             // distantOblasts (null)
     ]);
   });
 
   it.each([
-    { gdprConsent: true,  riskySections: false, expectedGdpr: '1', expectedRisky: '0' },
-    { gdprConsent: false, riskySections: true,  expectedGdpr: '0', expectedRisky: '1' },
+    { gdprConsent: true,  riskySections: false, expectedGdpr: 'TRUE', expectedRisky: 'FALSE' },
+    { gdprConsent: false, riskySections: true,  expectedGdpr: 'FALSE', expectedRisky: 'TRUE' },
   ])('should convert booleans: gdprConsent=$gdprConsent→$expectedGdpr, riskySections=$riskySections→$expectedRisky', async ({ gdprConsent, riskySections, expectedGdpr, expectedRisky }) => {
     mockSheetsFlow();
     await callAppendRow({ volunteer: { ...mockVolunteer, gdprConsent, riskySections } });
