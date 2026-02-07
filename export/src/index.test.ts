@@ -16,8 +16,20 @@ vi.mock('./handlers/export', () => ({
   appendRowToSheet: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('./utils/logger', () => ({
+  Logger: vi.fn().mockImplementation(function(this: any, ctx: any) {
+    this._ctx = ctx;
+    this.info = vi.fn();
+    this.error = vi.fn();
+    this.warn = vi.fn();
+    this.debug = vi.fn();
+    this.withContext = vi.fn().mockReturnThis();
+  }),
+}));
+
 import ExportWorker from './index';
 import { appendRowToSheet } from './handlers/export';
+import { Logger } from './utils/logger';
 
 const mockEnv = {
   GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON: '{"client_email":"test"}',
@@ -69,12 +81,13 @@ describe('ExportWorker', () => {
     const worker = createWorker();
     await worker.appendRow(mockVolunteer);
 
+    expect(Logger).toHaveBeenCalledWith({ source: 'rpc', volunteerId: 1 });
     expect(appendRowToSheet).toHaveBeenCalledWith(
       '{"client_email":"test"}',
       'sheet-123',
       'TestSheet',
       mockVolunteer,
-      expect.anything(),
+      expect.objectContaining({ info: expect.any(Function) }),
     );
   });
 
@@ -87,7 +100,7 @@ describe('ExportWorker', () => {
       expect.anything(),
       'Sheet1',
       mockVolunteer,
-      expect.anything(),
+      expect.objectContaining({ info: expect.any(Function) }),
     );
   });
 });

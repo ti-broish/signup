@@ -131,7 +131,7 @@ describe('form worker', () => {
       const mockAssets = createMockAssets('<html><head></head><body>Page</body></html>', 200, 'text/html; charset=utf-8');
       const { response, html } = await fetchHtml('/page.html', { ASSETS: mockAssets });
       expect(html).toContain('<script>');
-      expect(response.headers.get('Content-Security-Policy')).toBeDefined();
+      expect(response.headers.get('Content-Security-Policy')).not.toBeNull();
       expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
     });
 
@@ -183,7 +183,7 @@ describe('form worker', () => {
     it('should add CSP to static asset responses', async () => {
       const mockAssets = createMockAssets('body {}', 200, 'text/css');
       const { response } = await fetchWorker('/assets/style.css', { ASSETS: mockAssets });
-      expect(response.headers.get('Content-Security-Policy')).toBeDefined();
+      expect(response.headers.get('Content-Security-Policy')).not.toBeNull();
       expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
     });
   });

@@ -73,7 +73,10 @@ describe('submit worker', () => {
       expect(response.status).toBe(201);
       expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000');
       expect(handleVolunteerSubmission).toHaveBeenCalledWith(
-        expect.any(Request), env, expect.anything(), ctx,
+        expect.any(Request),
+        env,
+        expect.objectContaining({ info: expect.any(Function), error: expect.any(Function) }),
+        ctx,
       );
     });
   });

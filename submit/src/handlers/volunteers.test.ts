@@ -24,6 +24,7 @@ vi.mock('../utils/rateLimit', () => ({
 }));
 
 import { validateTurnstileToken } from './turnstile';
+import { sendBrevoTemplateEmail } from './brevo';
 
 describe('handleVolunteerSubmission', () => {
   let env: ReturnType<typeof createMockEnv>;
@@ -83,7 +84,7 @@ describe('handleVolunteerSubmission', () => {
 
   it('should NOT require EGN for video surveillance role', async () => {
     const response = await submitForm({ role: 'Видеонаблюдение', egn: '' });
-    expect(response.status).not.toBe(400);
+    expect(response.status).toBe(201);
   });
 
   describe('Turnstile validation', () => {
@@ -140,15 +141,33 @@ describe('handleVolunteerSubmission', () => {
     );
   });
 
-  it('should call sendBrevoTemplateEmail via ctx.waitUntil', async () => {
+  it('should send Brevo email via ctx.waitUntil on success', async () => {
+    env.BREVO_API_KEY = 'test-brevo-key';
+    env.BREVO_TEMPLATE_ID = '42';
     await submitForm();
+
     expect(ctx.waitUntil).toHaveBeenCalled();
+    expect(sendBrevoTemplateEmail).toHaveBeenCalledWith(
+      'test-brevo-key',
+      '42',
+      expect.objectContaining({ email: 'ivan@example.com' }),
+      expect.objectContaining({ FIRSTNAME: 'Иван' }),
+      expect.anything(),
+    );
   });
 
   it('should call EXPORT.appendRow when EXPORT binding exists', async () => {
-    env.EXPORT = { appendRow: vi.fn().mockResolvedValue(undefined) };
+    const mockAppendRow = vi.fn().mockResolvedValue(undefined);
+    env.EXPORT = { appendRow: mockAppendRow };
     await submitForm();
+
     expect(ctx.waitUntil).toHaveBeenCalled();
+    // Resolve the waitUntil promises to verify appendRow is called
+    const waitUntilCalls = vi.mocked(ctx.waitUntil).mock.calls;
+    await Promise.all(waitUntilCalls.map(([promise]) => promise));
+    expect(mockAppendRow).toHaveBeenCalledWith(
+      expect.objectContaining({ firstName: 'Иван', email: 'ivan@example.com' }),
+    );
   });
 
   it('should handle undefined EXPORT binding gracefully', async () => {

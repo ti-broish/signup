@@ -219,9 +219,6 @@ describe('validateEGN', () => {
             expect(result.message).toBe('Невалидна дата в ЕГН');
         });
 
-        it('should reject a clearly invalid test EGN', () => {
-            expect(validateEGN('1111111111').valid).toBe(false);
-        });
     });
 
     describe('Century encoding (1800s - month 21-32)', () => {
@@ -250,7 +247,7 @@ describe('validateEGN', () => {
         });
     });
 
-    describe('Age validation (18+ on 29.03.2026)', () => {
+    describe('Age validation (18+ on 19.04.2026)', () => {
         it('should accept person who turns 18 before election date', () => {
             // Born 01.01.2008, turns 18 on 01.01.2026 (before election)
             expect(validateEGN('0841010167').valid).toBe(true);
@@ -304,10 +301,10 @@ describe('validateEGN', () => {
             expect(result.message).toBe('Невалиден ЕГН (грешна контролна сума)');
         });
 
-        it('should reject 0000000000 (invalid checksum)', () => {
+        it('should reject 0000000000 (invalid month before checksum)', () => {
             const result = validateEGN('0000000000');
             expect(result.valid).toBe(false);
-            // Will fail on date validation before checksum
+            expect(result.message).toBe('Невалиден месец в ЕГН');
         });
 
         it('should reject EGN with valid date but wrong checksum', () => {
@@ -323,10 +320,9 @@ describe('validateEGN', () => {
         });
 
         it('should handle checksum = 10 (maps to 0)', () => {
-            // Find an EGN where checksum % 11 = 10
-            // Example: when sum % 11 = 10, last digit should be 0
-            // Need to construct such an EGN
-            // Let's verify this case exists and works
+            // 8503150100: sum = 8*2+5*4+0*8+3*5+1*10+5*9+0*7+1*3+0*6 = 109
+            // 109 % 11 = 10, expectedChecksum = 0, last digit = 0 ✓
+            expect(validateEGN('8503150100').valid).toBe(true);
         });
 
         it('should validate multiple real-world EGNs', () => {

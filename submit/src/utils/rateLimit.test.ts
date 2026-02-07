@@ -34,11 +34,13 @@ describe('RateLimiter', () => {
       expect(result.remaining).toBe(expectedRemaining);
     });
 
-    it('should INSERT for first request, UPDATE for subsequent', async () => {
+    it('should INSERT for first request', async () => {
       db._mocks.first.mockResolvedValue(null);
       await rateLimiter.checkLimit('1.2.3.4');
       expect(sqlContaining('INSERT INTO rate_limits')).toBeDefined();
+    });
 
+    it('should UPDATE for subsequent requests', async () => {
       db._mocks.first.mockResolvedValue({ count: 2 });
       await rateLimiter.checkLimit('1.2.3.4');
       expect(sqlContaining('UPDATE rate_limits SET count')).toBeDefined();
