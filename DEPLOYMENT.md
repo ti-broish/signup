@@ -124,7 +124,52 @@ Ensure DNS records are configured:
 
 Note: Routes in `wrangler.jsonc` are for documentation. Actual routing is configured in the Cloudflare dashboard.
 
-## Deployment
+## Automatic Deployment (Worker Builds)
+
+Each worker has a `build` command in its `wrangler.jsonc` that runs tests and builds before deployment. Cloudflare Worker Builds uses these to deploy automatically from Git.
+
+### Setup
+
+For each worker (form, submit, export), create **two Workers** in the Cloudflare dashboard:
+
+| Worker | Staging Name | Production Name |
+|--------|-------------|-----------------|
+| form | `signup-form-staging` | `signup-form-production` |
+| submit | `signup-submit-staging` | `signup-submit-production` |
+| export | `signup-export-staging` | `signup-export-production` |
+
+### Connect Git Repository
+
+1. In the Cloudflare dashboard, go to each Worker → Settings → Build
+2. Connect the `ti-broish/signup` Git repository
+3. Configure each Worker:
+
+**Staging Workers:**
+- Branch: `main`
+- Root directory: `form/`, `submit/`, or `export/` respectively
+- Deploy command: `npx wrangler deploy --env staging`
+
+**Production Workers:**
+- Branch: `main`
+- Root directory: `form/`, `submit/`, or `export/` respectively
+- Deploy command: `npx wrangler versions upload --env production` (manual promotion)
+- Or: `npx wrangler deploy --env production` (auto-deploy)
+
+### Build Commands
+
+The build commands in each `wrangler.jsonc` run from the worker directory, `cd ..` to repo root for pnpm workspace:
+
+- **form**: `cd .. && pnpm install --frozen-lockfile && pnpm --filter @signup/form test -- --run && pnpm --filter @signup/form build`
+- **submit**: `cd .. && pnpm install --frozen-lockfile && pnpm --filter @signup/submit test -- --run && pnpm --filter @signup/submit build`
+- **export**: `cd .. && pnpm install --frozen-lockfile && pnpm --filter @signup/export test -- --run && pnpm --filter @signup/export build`
+
+Tests run before builds — a failing test will prevent deployment.
+
+### Environment Variables for Builds
+
+Set build-time secrets in each Worker's Build settings in the dashboard. These are only available during the build, not at runtime. Runtime secrets are configured separately.
+
+## Manual Deployment
 
 ### Build
 
