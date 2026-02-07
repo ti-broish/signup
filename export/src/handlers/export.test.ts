@@ -42,7 +42,7 @@ describe('appendRowToSheet', () => {
       role: 'Пазител на вота в секция',
       referralCode: 'ABC123',
       referredBy: null,
-      createdAt: '2026-01-01T00:00:00.000Z',
+      createdAt: '2026-01-01 00:00:00',
     };
   });
 
@@ -122,7 +122,7 @@ describe('appendRowToSheet', () => {
       'Пазител на вота в секция',     // role
       'ABC123',                       // referralCode
       '',                             // referredBy (null)
-      '2026-01-01T00:00:00.000Z',    // createdAt
+      '2026-01-01 00:00:00',          // createdAt
       '0',                            // riskySections (false)
       '',                             // distantOblasts (null)
     ]);

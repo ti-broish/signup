@@ -58,7 +58,7 @@ const mockVolunteer = {
   role: 'Пазител на вота в секция',
   referralCode: 'ABC123',
   referredBy: null,
-  createdAt: '2026-01-01T00:00:00Z',
+  createdAt: '2026-01-01 00:00:00',
 };
 
 describe('ExportWorker', () => {

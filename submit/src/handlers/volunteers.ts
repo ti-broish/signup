@@ -237,7 +237,7 @@ export async function handleVolunteerSubmission(
           role: formData.role,
           referralCode: formData.referralCode,
           referredBy: formData.referredBy || null,
-          createdAt: new Date().toISOString(),
+          createdAt: new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ''),
         }).catch((error) => {
           logger.error('Export to Google Sheets failed', error);
         })
