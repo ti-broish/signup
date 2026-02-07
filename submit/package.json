@@ -21,10 +21,10 @@
     "test:coverage": "vitest --coverage"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241127.0",
+    "@cloudflare/workers-types": "^4.20260207.0",
     "@vitest/coverage-v8": "^4.0.18",
     "typescript": "^5.8.2",
     "vitest": "^4.0.17",
-    "wrangler": "^4.60.0"
+    "wrangler": "^4.63.0"
   }
 }

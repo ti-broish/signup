@@ -24,9 +24,11 @@
     "db:migrate:staging": "cd submit && npx wrangler d1 migrations apply signup-db-staging --env=staging",
     "db:migrate:production": "cd submit && npx wrangler d1 migrations apply signup-db-production --env=production",
     "test": "pnpm --recursive test",
-    "test:coverage": "pnpm --recursive test:coverage"
+    "test:coverage": "pnpm --recursive test:coverage",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "pnpm": "^10.28.2"
   },
   "engines": {
