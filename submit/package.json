@@ -15,12 +15,15 @@
     "db:setup": "./scripts/apply-local-schema.sh",
     "dev:setup": "pnpm run db:setup && pnpm run dev",
     "db:create": "wrangler d1 create signup-db",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
   },
-  "dependencies": {},
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "typescript": "^5.8.2",
+    "vitest": "^4.0.17",
     "wrangler": "^4.60.0"
   }
 }

@@ -1,6 +1,9 @@
 {
   "name": "signup-submit",
   "main": "src/index.ts",
+  "build": {
+    "command": "cd .. && pnpm install --frozen-lockfile && pnpm --filter @signup/submit test -- --run && pnpm --filter @signup/submit build"
+  },
   "account_id": "579692914a155ab268c22b814cbf8a05",
   "compatibility_date": "2024-09-23",
   "workers_dev": true,

@@ -186,6 +186,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     role: 'poll_watcher'
   });
 
+  const roleRequires = (field: 'egn' | 'travelAbility' | 'riskySections') => {
+    const pollWatcherOnly = ['egn', 'travelAbility', 'riskySections'];
+    return !pollWatcherOnly.includes(field) || formData.role === 'poll_watcher';
+  };
+
   // API data state
   const [regions, setRegions] = useState<Region[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
@@ -973,9 +978,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     }
 
     // Only validate EGN if:
-    // 1. Role is 'poll_watcher' (required), OR
+    // 1. Role requires it (poll_watcher), OR
     // 2. User provided an EGN value (optional validation for video_surveillance)
-    if (formData.role === 'poll_watcher' || formData.egn.trim()) {
+    if (roleRequires('egn') || formData.egn.trim()) {
       const egnVal = validateEGN(formData.egn);
       if (!egnVal.valid) {
         newErrors.egn = egnVal.message || 'Невалиден ЕГН';
@@ -999,7 +1004,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     }
 
     // Validate distantOblasts when travelAbility is 'distant' and not abroad
-    if (formData.travelAbility === 'distant' && !isAbroad && !formData.distantOblasts?.trim()) {
+    if (roleRequires('travelAbility') && formData.travelAbility === 'distant' && !isAbroad && !formData.distantOblasts?.trim()) {
       newErrors.distantOblasts = 'Моля посочете кои области';
     }
 
@@ -1261,9 +1266,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         settlement: formData.settlement?.name || null,
         cityRegion: formData.cityRegion?.name || null,
         pollingStation: pollingStationString,
-        travelAbility: travelAbilityString,
-        distantOblasts: formData.distantOblasts?.trim() || null,
-        riskySections: formData.riskySections,
+        travelAbility: roleRequires('travelAbility') ? travelAbilityString : null,
+        distantOblasts: roleRequires('travelAbility') ? (formData.distantOblasts?.trim() || null) : null,
+        riskySections: roleRequires('riskySections') ? formData.riskySections : false,
         gdprConsent: formData.gdprConsent,
         role: roleString,
         turnstileToken: isLocalDev ? 'local-dev-token' : turnstileToken,
@@ -1853,7 +1858,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             note: 'Невалиден телефонен номер',
             autoComplete: 'tel'
           })}
-          {formData.role === 'poll_watcher' && renderField('egn', 'ЕГН', 'text', {
+          {roleRequires('egn') && renderField('egn', 'ЕГН', 'text', {
             required: true,
             maxLength: 10,
             autoComplete: 'off'
@@ -2012,7 +2017,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           </div>
         </div>
 
-        <div className="form-section">
+        {roleRequires('travelAbility') && <div className="form-section">
           <div className="form-group">
             <label>Възможност да пътувате</label>
             <div className="radio-group">
@@ -2156,7 +2161,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           <div className="info-text">
             <p><strong>Важно:</strong> Това е доброволен труд без заплащане</p>
           </div>
-        </div>
+        </div>}
 
         {
           !isLocalDev && turnstileSiteKey && turnstileSiteKey.trim() !== '' && (
