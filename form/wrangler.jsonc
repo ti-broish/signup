@@ -7,8 +7,8 @@
     "nodejs_compat",
     "nodejs_compat_populate_process_env"
   ],
-  "workers_dev": false,
-  "preview_urls": false,
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
