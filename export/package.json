@@ -8,11 +8,15 @@
     "deploy": "echo 'Error: Please use deploy:staging or deploy:production' && exit 1",
     "deploy:staging": "wrangler deploy --env staging --config wrangler.jsonc",
     "deploy:production": "wrangler deploy --env production --config wrangler.jsonc",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "typescript": "^5.8.2",
+    "vitest": "^4.0.17",
     "wrangler": "^4.60.0"
   }
 }

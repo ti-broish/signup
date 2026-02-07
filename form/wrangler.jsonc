@@ -1,6 +1,9 @@
 {
   "name": "signup-form",
   "main": "src/worker.ts",
+  "build": {
+    "command": "cd .. && pnpm install --frozen-lockfile && pnpm --filter @signup/form test -- --run && pnpm --filter @signup/form build"
+  },
   "account_id": "579692914a155ab268c22b814cbf8a05",
   "compatibility_date": "2024-01-01",
   "compatibility_flags": [
