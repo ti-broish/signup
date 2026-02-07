@@ -127,12 +127,12 @@ export async function appendRowToSheet(
     volunteer.cityRegion || '',
     volunteer.pollingStation || '',
     volunteer.travelAbility,
-    volunteer.gdprConsent ? 'TRUE' : 'FALSE',
+    volunteer.gdprConsent,
     volunteer.role,
     volunteer.referralCode,
     volunteer.referredBy || '',
     volunteer.createdAt,
-    volunteer.riskySections ? 'TRUE' : 'FALSE',
+    volunteer.riskySections,
     volunteer.distantOblasts || '',
   ];
 
