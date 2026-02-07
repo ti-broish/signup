@@ -177,6 +177,7 @@ describe('handleVolunteerSubmission', () => {
   });
 
   it('should return 500 on database error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     const mockDb = createMockD1();
     mockDb._mocks.run.mockRejectedValue(new Error('DB connection failed'));
     env.DB = mockDb as unknown as D1Database;

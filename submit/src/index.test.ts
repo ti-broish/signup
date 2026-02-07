@@ -103,6 +103,7 @@ describe('submit worker', () => {
 
   describe('error handling', () => {
     it('should return 500 on unhandled error', async () => {
+      vi.spyOn(console, 'log').mockImplementation(() => {});
       vi.mocked(handleVolunteerSubmission).mockRejectedValue(new Error('unexpected'));
 
       const response = await fetchWorker('/submit', {
