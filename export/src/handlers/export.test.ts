@@ -122,7 +122,7 @@ describe('appendRowToSheet', () => {
       'Пазител на вота в секция',     // role
       'ABC123',                       // referralCode
       '',                             // referredBy (null)
-      '2026-01-01 00:00:00',          // createdAt
+      '01.01.2026 00:00:00',          // createdAt
       false,                           // riskySections
       '',                             // distantOblasts (null)
     ]);
