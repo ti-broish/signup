@@ -13,6 +13,7 @@
     "deploy:staging": "vite build --mode staging && wrangler deploy --config wrangler.jsonc --env staging",
     "deploy:production": "vite build --mode production && wrangler deploy --config wrangler.jsonc --env production",
     "dev:worker": "wrangler dev --env development",
+    "ci": "pnpm install --frozen-lockfile && pnpm test --run && pnpm build:staging",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"

@@ -9,6 +9,7 @@
     "deploy:staging": "wrangler deploy --env staging --config wrangler.jsonc",
     "deploy:production": "wrangler deploy --env production --config wrangler.jsonc",
     "build": "tsc --noEmit",
+    "ci": "pnpm install --frozen-lockfile && pnpm test --run && pnpm build",
     "test": "vitest",
     "test:coverage": "vitest --coverage"
   },

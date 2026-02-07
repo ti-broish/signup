@@ -16,6 +16,7 @@
     "dev:setup": "pnpm run db:setup && pnpm run dev",
     "db:create": "wrangler d1 create signup-db",
     "build": "tsc --noEmit",
+    "ci": "pnpm install --frozen-lockfile && pnpm test --run && pnpm build",
     "test": "vitest",
     "test:coverage": "vitest --coverage"
   },
