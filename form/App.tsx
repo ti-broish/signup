@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import SignUpWidget from './components/widgets/SignUpWidget';
+import ShareStoryPage from './components/widgets/ShareStoryPage';
 
 /**
  * Check if the current page is embedded in an iframe from an allowed domain
@@ -153,8 +154,20 @@ const checkIframeOrigin = (): { allowed: boolean; reason?: string } => {
  */
 const App: React.FC = () => {
   const [iframeCheck, setIframeCheck] = useState<{ allowed: boolean; reason?: string } | null>(null);
+  const [route, setRoute] = useState(window.location.hash);
 
   useEffect(() => {
+    const onHashChange = () => setRoute(window.location.hash);
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const isShareStory = route.startsWith('#/share-story');
+
+  useEffect(() => {
+    // Skip iframe check for standalone pages
+    if (isShareStory) return;
+
     // Wait a bit for the injected script to execute and set window.process.env
     // The script is injected in <head> but React might load before it executes
     const checkWithRetry = (attempts = 0) => {
@@ -173,7 +186,12 @@ const App: React.FC = () => {
     };
 
     checkWithRetry();
-  }, []);
+  }, [isShareStory]);
+
+  // Share story page: standalone, no iframe checks needed
+  if (isShareStory) {
+    return <ShareStoryPage />;
+  }
 
   // Show error if iframe check fails
   if (iframeCheck && !iframeCheck.allowed) {

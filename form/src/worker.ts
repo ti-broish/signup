@@ -155,6 +155,7 @@ export default {
         headers: {
           'Content-Type': 'text/html',
           'Content-Security-Policy': cspDirectives,
+          'Permissions-Policy': 'web-share=*',
           'X-Content-Type-Options': 'nosniff',
           // Note: X-Frame-Options is not needed when CSP frame-ancestors is set
           // CSP frame-ancestors takes precedence and is more flexible
@@ -190,6 +191,7 @@ export default {
       // Create headers with CSP and security headers
       const headers = new Headers(response.headers);
       headers.set('Content-Security-Policy', cspDirectives);
+      headers.set('Permissions-Policy', 'web-share=*');
       headers.set('X-Content-Type-Options', 'nosniff');
 
       return new Response(injectedHtml, {
