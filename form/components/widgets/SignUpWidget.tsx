@@ -1873,7 +1873,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             autoComplete: 'off'
           })}
 
-          {!isAbroad && renderField('municipality', 'Община / Район', 'select', {
+          {!isAbroad && renderField('municipality', 'Община', 'select', {
             required: true,
             items: municipalities,
             keyField: 'code',
