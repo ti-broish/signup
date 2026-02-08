@@ -8,6 +8,12 @@
 
 import { Logger } from '../utils/logger';
 
+function formatTimestamp(isoLike: string): string {
+  const [date, time] = isoLike.split(' ');
+  const [y, m, d] = date.split('-');
+  return `${d}.${m}.${y} ${time}`;
+}
+
 export interface VolunteerExportData {
   id: number;
   firstName: string;
@@ -131,7 +137,7 @@ export async function appendRowToSheet(
     volunteer.role,
     volunteer.referralCode,
     volunteer.referredBy || '',
-    volunteer.createdAt,
+    formatTimestamp(volunteer.createdAt),
     volunteer.riskySections,
     volunteer.distantOblasts || '',
   ];
