@@ -153,70 +153,39 @@ const SignUpSuccess: React.FC<SignUpSuccessProps> = ({ submittedReferralCode, su
           <br />
           Ще се свържем с вас по телефона до няколко дни за следващите стъпки.
         </p>
-        <div style={{
-          backgroundColor: 'white',
-          padding: '1rem',
-          borderRadius: '6px',
-          border: '1px solid #cbd5e1',
-          marginBottom: '1rem'
-        }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.9rem', color: '#475569' }}>
-            Сподели с други, които да се запишат:
-          </label>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input
-              type="text"
-              readOnly
-              value={shareUrl}
-              style={{
-                flex: 1,
-                padding: '0.75rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '4px',
-                fontSize: '0.9rem',
-                fontFamily: 'monospace',
-                backgroundColor: '#f8fafc'
-              }}
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <button
-              type="button"
-              onClick={handleCopy}
-              style={{
-                padding: '0.75rem 1.5rem',
-                backgroundColor: copySuccess ? '#10b981' : '#14b8a6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                transition: 'background-color 0.2s',
-                minWidth: '100px'
-              }}
-              onMouseEnter={(e) => {
-                if (!copySuccess) {
-                  e.currentTarget.style.backgroundColor = '#0d9488';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!copySuccess) {
-                  e.currentTarget.style.backgroundColor = '#14b8a6';
-                }
-              }}
-            >
-              {copySuccess ? 'Копирано!' : 'Копирай'}
-            </button>
+        <div
+          onClick={handleCopy}
+          style={{
+            backgroundColor: 'white',
+            padding: '1rem',
+            borderRadius: '6px',
+            border: copySuccess ? '1px solid #10b981' : '1px solid #cbd5e1',
+            marginBottom: '1rem',
+            cursor: 'pointer',
+            transition: 'border-color 0.2s',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+            <span style={{ fontWeight: '600', fontSize: '0.9rem', color: '#475569' }}>
+              {copySuccess ? '✓ Копирано!' : 'Сподели с други, които да се запишат:'}
+            </span>
           </div>
-          {copySuccess && (
-            <div style={{
-              marginTop: '0.5rem',
-              fontSize: '0.85rem',
-              color: '#10b981',
-              textAlign: 'center'
-            }}>
-              ✓ Копирано
-            </div>
-          )}
+          <div style={{
+            padding: '0.6rem 0.75rem',
+            backgroundColor: '#f8fafc',
+            borderRadius: '4px',
+            border: '1px solid #e2e8f0',
+            fontSize: '0.8rem',
+            fontFamily: 'monospace',
+            color: '#334155',
+            wordBreak: 'break-all',
+          }}>
+            {shareUrl}
+          </div>
         </div>
         <div style={{
           marginTop: '1rem',
