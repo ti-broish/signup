@@ -78,6 +78,8 @@ interface FormData {
   email: string;
   phone: string;
   egn: string;
+  idCardNumber: string;
+  permanentAddress: string;
   country: Country | null;
   region: Region | null;
   municipality: Municipality | null;
@@ -131,6 +133,16 @@ const notifyParentSubmitSuccess = () => {
   }
 };
 
+const getIsObserverFromUrl = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('role') === 'observer';
+  } catch (e) {
+    return false;
+  }
+};
+
 const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   useIframeHeight();
   // Get privacy URL from env var or prop, default to https://tibroish.bg/privacy-notice
@@ -140,6 +152,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   const ABROAD_ID = '32'; // ID за "Извън страната"
   const BULGARIA_ID = '000'; // ID за "България"
   const STORAGE_KEY = 'signup-form-draft';
+
+  const isObserver = getIsObserverFromUrl();
 
   // Sofia MIR region codes (stable identifiers)
   const SOFIA_MIR_CODES = ['23', '24', '25'];
@@ -173,6 +187,8 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     email: '',
     phone: '',
     egn: '',
+    idCardNumber: '',
+    permanentAddress: '',
     country: null,
     region: null,
     municipality: null,
@@ -399,7 +415,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   const saveFormDataToStorage = (data: FormData) => {
     try {
       // Only save if form has some data
-      const hasData = data.firstName || data.lastName || data.email || data.phone || data.egn;
+      const hasData = data.firstName || data.lastName || data.email || data.phone || data.egn || data.idCardNumber || data.permanentAddress;
       if (hasData) {
         // Save actual MIR region instead of merged Sofia for proper restoration
         let dataToSave = data;
@@ -987,6 +1003,15 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       }
     }
 
+    if (isObserver) {
+      if (!formData.idCardNumber.trim()) {
+        newErrors.idCardNumber = 'Полето е задължително';
+      }
+      if (!formData.permanentAddress.trim()) {
+        newErrors.permanentAddress = 'Полето е задължително';
+      }
+    }
+
     if (!formData.region) newErrors.region = 'Полето е задължително';
 
     if (formData.region && formData.region.code !== ABROAD_ID) {
@@ -1273,7 +1298,12 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         role: roleString,
         turnstileToken: isLocalDev ? 'local-dev-token' : turnstileToken,
         referralCode: referralCode,
-        referredBy: referredBy || null
+        referredBy: referredBy || null,
+        ...(isObserver && {
+          isObserver: true,
+          idCardNumber: formData.idCardNumber,
+          permanentAddress: formData.permanentAddress,
+        }),
       };
 
       // Get submission endpoint from environment variable, default to /submit
@@ -1863,6 +1893,21 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             maxLength: 10,
             autoComplete: 'off'
           })}
+          {isObserver && (
+            <>
+              <div className="info-text" style={{ marginBottom: '0.5rem' }}>
+                <p>Тези данни са необходими за вашата Декларация като наблюдател</p>
+              </div>
+              {renderField('idCardNumber', 'Лична карта №', 'text', {
+                required: true,
+                autoComplete: 'off'
+              })}
+              {renderField('permanentAddress', 'Постоянен адрес', 'text', {
+                required: true,
+                autoComplete: 'off'
+              })}
+            </>
+          )}
         </div>
 
         <div className="form-section">

@@ -43,6 +43,9 @@ describe('appendRowToSheet', () => {
       referralCode: 'ABC123',
       referredBy: null,
       createdAt: '2026-01-01 00:00:00',
+      isObserver: false,
+      idCardNumber: null,
+      permanentAddress: null,
     };
   });
 
@@ -98,7 +101,7 @@ describe('appendRowToSheet', () => {
     );
   });
 
-  it('should construct correct 21-column row in expected order', async () => {
+  it('should construct correct 24-column row in expected order', async () => {
     mockSheetsFlow();
     await callAppendRow();
 
@@ -125,6 +128,9 @@ describe('appendRowToSheet', () => {
       '01.01.2026 00:00:00',          // createdAt
       false,                           // riskySections
       '',                             // distantOblasts (null)
+      false,                           // isObserver
+      '',                             // idCardNumber (null)
+      '',                             // permanentAddress (null)
     ]);
   });
 
@@ -177,11 +183,28 @@ describe('appendRowToSheet', () => {
     );
   });
 
+  it('should include observer fields when isObserver is true', async () => {
+    mockSheetsFlow();
+    await callAppendRow({
+      volunteer: {
+        ...mockVolunteer,
+        isObserver: true,
+        idCardNumber: '123456789',
+        permanentAddress: 'ул. Тестова 1, София',
+      },
+    });
+
+    const row = getAppendedRow();
+    expect(row[21]).toBe(true);
+    expect(row[22]).toBe('123456789');
+    expect(row[23]).toBe('ул. Тестова 1, София');
+  });
+
   it('should encode sheet name in Sheets API URL', async () => {
     mockSheetsFlow();
     await callAppendRow({ sheetName: 'Sheet With Spaces' });
 
     const url = vi.mocked(fetch).mock.calls[1][0] as string;
-    expect(url).toContain(encodeURIComponent('Sheet With Spaces!A:U'));
+    expect(url).toContain(encodeURIComponent('Sheet With Spaces!A:X'));
   });
 });
