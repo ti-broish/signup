@@ -29,6 +29,9 @@ export interface VolunteerFormData {
   turnstileToken?: string;
   referralCode: string;
   referredBy?: string | null;
+  isObserver?: boolean;
+  idCardNumber?: string;
+  permanentAddress?: string;
 }
 
 export async function handleVolunteerSubmission(
@@ -84,6 +87,24 @@ export async function handleVolunteerSubmission(
           email: !formData.email,
           phone: !formData.phone,
           egn: isEgnRequired && !formData.egn,
+        }}),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate observer-specific required fields
+    if (formData.isObserver && (!formData.idCardNumber || !formData.permanentAddress)) {
+      logger.warn('Missing observer required fields', {
+        ipAddress,
+        missing: {
+          idCardNumber: !formData.idCardNumber,
+          permanentAddress: !formData.permanentAddress,
+        }
+      });
+      return new Response(
+        JSON.stringify({ error: 'Missing observer required fields', details: {
+          idCardNumber: !formData.idCardNumber,
+          permanentAddress: !formData.permanentAddress,
         }}),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -160,8 +181,9 @@ export async function handleVolunteerSubmission(
         `INSERT INTO volunteers (
           firstName, middleName, lastName, email, phone, egn,
           country, region, municipality, settlement, cityRegion, pollingStation,
-          travelAbility, distantOblasts, riskySections, gdprConsent, role, referralCode, referredBy
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          travelAbility, distantOblasts, riskySections, gdprConsent, role, referralCode, referredBy,
+          isObserver, idCardNumber, permanentAddress
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(
           formData.firstName,
@@ -182,7 +204,10 @@ export async function handleVolunteerSubmission(
           formData.gdprConsent ? 1 : 0,
           formData.role,
           formData.referralCode,
-          formData.referredBy || null
+          formData.referredBy || null,
+          formData.isObserver ? 1 : 0,
+          formData.idCardNumber || null,
+          formData.permanentAddress || null
         )
         .run();
     } catch (dbError) {
@@ -238,6 +263,9 @@ export async function handleVolunteerSubmission(
           referralCode: formData.referralCode,
           referredBy: formData.referredBy || null,
           createdAt: new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ''),
+          isObserver: !!formData.isObserver,
+          idCardNumber: formData.idCardNumber || null,
+          permanentAddress: formData.permanentAddress || null,
         }).catch((error) => {
           logger.error('Export to Google Sheets failed', error);
         })

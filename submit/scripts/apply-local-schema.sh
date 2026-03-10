@@ -6,6 +6,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SCHEMA_FILE="$PROJECT_DIR/schema.sql"
+MIGRATIONS_DIR="$PROJECT_DIR/migrations"
 
 # Find all local D1 database files and apply schema to each
 DB_FILES=$(find "$PROJECT_DIR/.wrangler/state/v3/d1" -name "*.sqlite" 2>/dev/null)

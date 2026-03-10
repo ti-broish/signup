@@ -36,6 +36,9 @@ export interface VolunteerExportData {
   referralCode: string;
   referredBy: string | null;
   createdAt: string;
+  isObserver: boolean;
+  idCardNumber: string | null;
+  permanentAddress: string | null;
 }
 
 function base64url(data: string): string {
@@ -140,9 +143,12 @@ export async function appendRowToSheet(
     formatTimestamp(volunteer.createdAt),
     volunteer.riskySections,
     volunteer.distantOblasts || '',
+    volunteer.isObserver ? 'Да' : 'Не',
+    volunteer.idCardNumber || '',
+    volunteer.permanentAddress || '',
   ];
 
-  const range = `${sheetName}!A:U`;
+  const range = `${sheetName}!A:X`;
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {

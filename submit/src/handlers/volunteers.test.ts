@@ -176,6 +176,44 @@ describe('handleVolunteerSubmission', () => {
     expect(response.status).toBe(201);
   });
 
+  describe('Observer validation', () => {
+    it('should return 400 when observer is missing idCardNumber', async () => {
+      const { response, body } = await submitAndExpectJson({
+        isObserver: true,
+        idCardNumber: '',
+        permanentAddress: 'ул. Тестова 1',
+      });
+      expect(response.status).toBe(400);
+      expect(body.error).toBe('Missing observer required fields');
+      expect(body.details.idCardNumber).toBe(true);
+    });
+
+    it('should return 400 when observer is missing permanentAddress', async () => {
+      const { response, body } = await submitAndExpectJson({
+        isObserver: true,
+        idCardNumber: '123456789',
+        permanentAddress: '',
+      });
+      expect(response.status).toBe(400);
+      expect(body.error).toBe('Missing observer required fields');
+      expect(body.details.permanentAddress).toBe(true);
+    });
+
+    it('should return 201 when observer has all required fields', async () => {
+      const response = await submitForm({
+        isObserver: true,
+        idCardNumber: '123456789',
+        permanentAddress: 'ул. Тестова 1, София',
+      });
+      expect(response.status).toBe(201);
+    });
+
+    it('should NOT require observer fields when isObserver is false', async () => {
+      const response = await submitForm({ isObserver: false });
+      expect(response.status).toBe(201);
+    });
+  });
+
   it('should return 500 on database error', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const mockDb = createMockD1();

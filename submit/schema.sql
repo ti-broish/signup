@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS volunteers (
   role TEXT NOT NULL,
   referralCode TEXT NOT NULL,
   referredBy TEXT,
+  isObserver INTEGER NOT NULL DEFAULT 0,
+  idCardNumber TEXT,
+  permanentAddress TEXT,
   createdAt TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -29,6 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_volunteers_createdAt ON volunteers(createdAt);
 CREATE INDEX IF NOT EXISTS idx_volunteers_role ON volunteers(role);
 CREATE INDEX IF NOT EXISTS idx_volunteers_referralCode ON volunteers(referralCode);
 CREATE INDEX IF NOT EXISTS idx_volunteers_referredBy ON volunteers(referredBy);
+CREATE INDEX IF NOT EXISTS idx_volunteers_isObserver ON volunteers(isObserver);
 
 -- Rate limits table for preventing spam/abuse
 CREATE TABLE IF NOT EXISTS rate_limits (
