@@ -1003,7 +1003,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       }
     }
 
-    if (isObserver) {
+    if (isObserver && formData.role === 'poll_watcher') {
       if (!formData.idCardNumber.trim()) {
         newErrors.idCardNumber = 'Полето е задължително';
       }
@@ -1301,8 +1301,10 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         referredBy: referredBy || null,
         ...(isObserver && {
           isObserver: true,
-          idCardNumber: formData.idCardNumber,
-          permanentAddress: formData.permanentAddress,
+          ...(formData.role === 'poll_watcher' && {
+            idCardNumber: formData.idCardNumber,
+            permanentAddress: formData.permanentAddress,
+          }),
         }),
       };
 
@@ -1893,7 +1895,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             maxLength: 10,
             autoComplete: 'off'
           })}
-          {isObserver && (
+          {isObserver && formData.role === 'poll_watcher' && (
             <>
               <div className="info-text" style={{ marginBottom: '0.5rem' }}>
                 <p>Тези данни са необходими за вашата Декларация като наблюдател</p>

@@ -93,7 +93,7 @@ export async function handleVolunteerSubmission(
     }
 
     // Validate observer-specific required fields
-    if (formData.isObserver && (!formData.idCardNumber || !formData.permanentAddress)) {
+    if (formData.isObserver && formData.role === 'Пазител на вота в секция' && (!formData.idCardNumber || !formData.permanentAddress)) {
       logger.warn('Missing observer required fields', {
         ipAddress,
         missing: {

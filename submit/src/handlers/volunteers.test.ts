@@ -212,6 +212,17 @@ describe('handleVolunteerSubmission', () => {
       const response = await submitForm({ isObserver: false });
       expect(response.status).toBe(201);
     });
+
+    it('should NOT require observer fields for video surveillance role', async () => {
+      const response = await submitForm({
+        isObserver: true,
+        role: 'Видеонаблюдение от вкъщи',
+        egn: '',
+        idCardNumber: '',
+        permanentAddress: '',
+      });
+      expect(response.status).toBe(201);
+    });
   });
 
   it('should return 500 on database error', async () => {
