@@ -143,7 +143,7 @@ export async function appendRowToSheet(
     formatTimestamp(volunteer.createdAt),
     volunteer.riskySections,
     volunteer.distantOblasts || '',
-    volunteer.isObserver ? 'Да' : 'Не',
+    volunteer.isObserver,
     volunteer.idCardNumber || '',
     volunteer.permanentAddress || '',
   ];

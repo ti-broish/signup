@@ -128,7 +128,7 @@ describe('appendRowToSheet', () => {
       '01.01.2026 00:00:00',          // createdAt
       false,                           // riskySections
       '',                             // distantOblasts (null)
-      'Не',                           // isObserver
+      false,                           // isObserver
       '',                             // idCardNumber (null)
       '',                             // permanentAddress (null)
     ]);
@@ -195,7 +195,7 @@ describe('appendRowToSheet', () => {
     });
 
     const row = getAppendedRow();
-    expect(row[21]).toBe('Да');
+    expect(row[21]).toBe(true);
     expect(row[22]).toBe('123456789');
     expect(row[23]).toBe('ул. Тестова 1, София');
   });
