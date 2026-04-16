@@ -199,7 +199,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     distantOblasts: '',
     riskySections: false,
     gdprConsent: false,
-    role: 'poll_watcher'
+    role: 'video_surveillance'
   });
 
   const roleRequires = (field: 'egn' | 'travelAbility' | 'riskySections') => {
@@ -506,7 +506,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           }
         }
 
-        setFormData(prev => ({ ...prev, ...restoredData }));
+        setFormData(prev => ({ ...prev, ...restoredData, role: 'video_surveillance' }));
 
         // Trigger settlement fetch if municipality is restored
         // Fetch settlements immediately with persisted ID to ensure proper restoration
@@ -1839,12 +1839,16 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
           <div className="form-group">
             <label>Роля</label>
             <div style={{ flexDirection: 'row' }} className="radio-group">
-              <label>
+              <label
+                className="role-disabled"
+                title="Вече не приемаме регистрации за тази роля, тъй като не можем да ви регистрираме като застъпник. Можете да помогнете като видеонаблюдател от вкъщи."
+              >
                 <input
                   type="radio"
                   name="role"
                   value="poll_watcher"
-                  checked={formData.role === 'poll_watcher'}
+                  checked={false}
+                  disabled
                   onChange={handleChange}
                 />
                 Пазител на вота в секция
@@ -1859,6 +1863,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 />
                 Видеонаблюдение от вкъщи
               </label>
+            </div>
+            <div className="role-notice">
+              Вече не приемаме регистрации за „Пазител на вота в секция", тъй като не можем да ви регистрираме като застъпник. Можете да помогнете като видеонаблюдател от вкъщи.
             </div>
           </div>
         </div>

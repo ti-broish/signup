@@ -140,6 +140,26 @@
     font-size: 1rem;
 }
 
+.radio-group label.role-disabled {
+    cursor: not-allowed;
+    color: #999;
+}
+
+.radio-group label.role-disabled input[type="radio"] {
+    cursor: not-allowed;
+}
+
+.role-notice {
+    margin-top: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    background-color: #fff8e1;
+    border-left: 3px solid #f5a623;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #5a4200;
+    line-height: 1.4;
+}
+
 .radio-group input[type="radio"],
 .radio-group input[type="checkbox"] {
     margin-right: 0.8rem;
