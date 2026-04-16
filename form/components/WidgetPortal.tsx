@@ -26,7 +26,7 @@ const WidgetPortal: React.FC = () => {
 
   const getIframeCode = (widget: WidgetMetadata) => {
     const url = getWidgetUrl(widget.id, true);
-    return `<iframe src="${url}" width="${widget.defaultWidth}" height="${widget.defaultHeight}" style="border:none; border-radius:12px; overflow:hidden;"></iframe>`;
+    return `<iframe src="${url}" width="${widget.defaultWidth}" height="${widget.defaultHeight}" allow="web-share" style="border:none; border-radius:12px; overflow:hidden;"></iframe>`;
   };
 
   const copyToClipboard = (text: string) => {
@@ -89,6 +89,7 @@ const WidgetPortal: React.FC = () => {
                   <iframe
                     src={getWidgetUrl(selectedWidget.id, true)}
                     className="border-none"
+                    allow="web-share"
                     style={{
                       display: "block",
                       width: selectedWidget.defaultWidth,
@@ -141,7 +142,7 @@ const WidgetPortal: React.FC = () => {
                   </h3>
                   <div className="bg-gray-900 rounded-lg p-10 relative group">
                     <pre className="text-green-400 text-sm overflow-x-auto pr-16 mt-4">
-                      {`<iframe\n  src="${getWidgetUrl(selectedWidget.id, true)}"\n  width="${selectedWidget.defaultWidth}"\n  height="${selectedWidget.defaultHeight}"\n  style="border:none; border-radius:12px; overflow:hidden;"\n></iframe>`}
+                      {`<iframe\n  src="${getWidgetUrl(selectedWidget.id, true)}"\n  width="${selectedWidget.defaultWidth}"\n  height="${selectedWidget.defaultHeight}"\n  allow="web-share"\n  style="border:none; border-radius:12px; overflow:hidden;"\n></iframe>`}
                     </pre>
                     <button
                       onClick={() =>
