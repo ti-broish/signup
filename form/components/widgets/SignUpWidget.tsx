@@ -143,6 +143,16 @@ const getIsObserverFromUrl = () => {
   }
 };
 
+const getIsInternalFromUrl = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('internal') === '1' || params.get('internal') === 'true';
+  } catch (e) {
+    return false;
+  }
+};
+
 const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   useIframeHeight();
   // Get privacy URL from env var or prop, default to https://tibroish.bg/privacy-notice
@@ -154,6 +164,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
   const STORAGE_KEY = 'signup-form-draft';
 
   const isObserver = getIsObserverFromUrl();
+  const isInternal = getIsInternalFromUrl();
 
   // Sofia MIR region codes (stable identifiers)
   const SOFIA_MIR_CODES = ['23', '24', '25'];
@@ -199,7 +210,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
     distantOblasts: '',
     riskySections: false,
     gdprConsent: false,
-    role: 'video_surveillance'
+    role: isInternal ? 'poll_watcher' : 'video_surveillance'
   });
 
   const roleRequires = (field: 'egn' | 'travelAbility' | 'riskySections') => {
@@ -987,9 +998,13 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
       newErrors.email = 'Невалиден имейл адрес';
     }
 
-    if (!formData.phone) {
-      newErrors.phone = 'Полето е задължително';
-    } else if (!validatePhone(formData.phone)) {
+    if (!isInternal) {
+      if (!formData.phone) {
+        newErrors.phone = 'Полето е задължително';
+      } else if (!validatePhone(formData.phone)) {
+        newErrors.phone = 'Невалиден телефонен номер';
+      }
+    } else if (formData.phone && !validatePhone(formData.phone)) {
       newErrors.phone = 'Невалиден телефонен номер';
     }
 
@@ -1014,14 +1029,16 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
 
     if (!formData.region) newErrors.region = 'Полето е задължително';
 
-    if (formData.region && formData.region.code !== ABROAD_ID) {
-      if (!formData.municipality) newErrors.municipality = 'Полето е задължително';
-      if (!formData.settlement) newErrors.settlement = 'Полето е задължително';
-    }
+    if (!isInternal) {
+      if (formData.region && formData.region.code !== ABROAD_ID) {
+        if (!formData.municipality) newErrors.municipality = 'Полето е задължително';
+        if (!formData.settlement) newErrors.settlement = 'Полето е задължително';
+      }
 
-    if (formData.region?.code === ABROAD_ID) {
-      if (!formData.country) newErrors.country = 'Полето е задължително';
-      if (!formData.settlement?.name.trim()) newErrors.settlement = 'Полето е задължително';
+      if (formData.region?.code === ABROAD_ID) {
+        if (!formData.country) newErrors.country = 'Полето е задължително';
+        if (!formData.settlement?.name.trim()) newErrors.settlement = 'Полето е задължително';
+      }
     }
 
     if (!formData.gdprConsent) {
@@ -1299,6 +1316,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         turnstileToken: isLocalDev ? 'local-dev-token' : turnstileToken,
         referralCode: referralCode,
         referredBy: referredBy || null,
+        ...(isInternal && { isInternal: true }),
         ...(isObserver && {
           isObserver: true,
           ...(formData.role === 'poll_watcher' && {
@@ -1840,15 +1858,15 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             <label>Роля</label>
             <div style={{ flexDirection: 'row' }} className="radio-group">
               <label
-                className="role-disabled"
-                title="Вече не приемаме регистрации за тази роля, тъй като не можем да ви регистрираме като застъпник. Можете да помогнете като видеонаблюдател от вкъщи."
+                className={isInternal ? '' : 'role-disabled'}
+                title={isInternal ? '' : 'Вече не приемаме регистрации за тази роля, тъй като не можем да ви регистрираме като застъпник. Можете да помогнете като видеонаблюдател от вкъщи.'}
               >
                 <input
                   type="radio"
                   name="role"
                   value="poll_watcher"
-                  checked={false}
-                  disabled
+                  checked={formData.role === 'poll_watcher'}
+                  disabled={!isInternal}
                   onChange={handleChange}
                 />
                 Пазител на вота в секция
@@ -1864,9 +1882,11 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 Видеонаблюдение от вкъщи
               </label>
             </div>
-            <div className="role-notice">
-              Вече не приемаме регистрации за „Пазител на вота в секция", тъй като не можем да ви регистрираме като застъпник. Можете да помогнете като видеонаблюдател от вкъщи.
-            </div>
+            {!isInternal && (
+              <div className="role-notice">
+                Вече не приемаме регистрации за „Пазител на вота в секция", тъй като не можем да ви регистрираме като застъпник. Можете да помогнете като видеонаблюдател от вкъщи.
+              </div>
+            )}
           </div>
         </div>
 
@@ -1892,7 +1912,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             autoComplete: 'email'
           })}
           {renderField('phone', 'Телефонен номер', 'tel', {
-            required: true,
+            required: !isInternal,
             placeholder: '08xxxxxxxx / +359xxxxxxxx',
             note: 'Невалиден телефонен номер',
             autoComplete: 'tel'
@@ -1927,7 +1947,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             autoComplete: 'off'
           })}
 
-          {!isAbroad && renderField('municipality', 'Община', 'select', {
+          {!isInternal && !isAbroad && renderField('municipality', 'Община', 'select', {
             required: true,
             items: municipalities,
             keyField: 'code',
@@ -1935,14 +1955,14 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             autoComplete: 'off'
           })}
 
-          {isAbroad && renderField('country', 'Държава', 'select', {
+          {!isInternal && isAbroad && renderField('country', 'Държава', 'select', {
             required: true,
             items: countries,
             keyField: 'code',
             autoComplete: 'off'
           })}
 
-          <div className={`form-group ${errors.settlement && touched.settlement ? 'has-error' : ''}`}>
+          {!isInternal && <div className={`form-group ${errors.settlement && touched.settlement ? 'has-error' : ''}`}>
             <label htmlFor="settlement">
               Населено място <span className="required">*</span>
             </label>
@@ -1985,10 +2005,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 <div className="validation-tooltip">{errors.settlement}</div>
               )}
             </div>
-          </div>
+          </div>}
 
-
-          {formData.settlement?.cityRegions && formData.settlement.cityRegions.length > 0 && !isAbroad && (
+          {!isInternal && formData.settlement?.cityRegions && formData.settlement.cityRegions.length > 0 && !isAbroad && (
             <div className={`form-group ${errors.cityRegion && touched.cityRegion ? 'has-error' : ''}`}>
               <label htmlFor="cityRegion">
                 Район <span className="required">*</span>
@@ -2018,7 +2037,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
             </div>
           )}
 
-          <div className="form-group">
+          {!isInternal && <div className="form-group">
             <label htmlFor="pollingStation">Адрес на секцията където гласувате</label>
             <div className="input-wrapper">
               {isAbroad ? (
@@ -2068,7 +2087,7 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
                 </select>
               )}
             </div>
-          </div>
+          </div>}
         </div>
 
         {roleRequires('travelAbility') && <div className="form-section">
