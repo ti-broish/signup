@@ -1940,9 +1940,9 @@ const SignUpWidget: React.FC<SignUpWidgetProps> = ({ privacyUrl }) => {
         </div>
 
         <div className="form-section">
-          {renderField('region', 'Област', 'select', {
+          {renderField('region', isInternal ? 'МИР' : 'Област', 'select', {
             required: true,
-            items: displayRegions,
+            items: isInternal ? regions : displayRegions,
             keyField: 'code',
             autoComplete: 'off'
           })}
