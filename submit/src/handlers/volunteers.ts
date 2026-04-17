@@ -30,6 +30,7 @@ export interface VolunteerFormData {
   referralCode: string;
   referredBy?: string | null;
   isObserver?: boolean;
+  isInternal?: boolean;
   idCardNumber?: string;
   permanentAddress?: string;
 }
@@ -69,14 +70,15 @@ export async function handleVolunteerSubmission(
     // Validate required fields
     // EGN is only required for poll watchers ("Пазител на вота в секция")
     const isEgnRequired = formData.role === 'Пазител на вота в секция';
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || (isEgnRequired && !formData.egn)) {
+    const isPhoneRequired = !formData.isInternal;
+    if (!formData.firstName || !formData.lastName || !formData.email || (isPhoneRequired && !formData.phone) || (isEgnRequired && !formData.egn)) {
       logger.warn('Missing required fields', {
         ipAddress,
         missing: {
           firstName: !formData.firstName,
           lastName: !formData.lastName,
           email: !formData.email,
-          phone: !formData.phone,
+          phone: isPhoneRequired && !formData.phone,
           egn: isEgnRequired && !formData.egn,
         }
       });
@@ -85,7 +87,7 @@ export async function handleVolunteerSubmission(
           firstName: !formData.firstName,
           lastName: !formData.lastName,
           email: !formData.email,
-          phone: !formData.phone,
+          phone: isPhoneRequired && !formData.phone,
           egn: isEgnRequired && !formData.egn,
         }}),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -190,7 +192,7 @@ export async function handleVolunteerSubmission(
           formData.middleName || null,
           formData.lastName,
           formData.email,
-          formData.phone,
+          formData.phone || '',
           formData.egn,
           formData.country || 'България', // Default to България if not provided
           formData.region || null,
