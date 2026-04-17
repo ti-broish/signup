@@ -39,6 +39,7 @@ export interface VolunteerExportData {
   isObserver: boolean;
   idCardNumber: string | null;
   permanentAddress: string | null;
+  isInternal: boolean;
 }
 
 function base64url(data: string): string {
@@ -146,9 +147,10 @@ export async function appendRowToSheet(
     volunteer.isObserver,
     volunteer.idCardNumber || '',
     volunteer.permanentAddress || '',
+    volunteer.isInternal,
   ];
 
-  const range = `${sheetName}!A:X`;
+  const range = `${sheetName}!A:Y`;
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
