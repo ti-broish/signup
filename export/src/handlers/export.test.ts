@@ -46,6 +46,7 @@ describe('appendRowToSheet', () => {
       isObserver: false,
       idCardNumber: null,
       permanentAddress: null,
+      isInternal: false,
     };
   });
 
@@ -101,7 +102,7 @@ describe('appendRowToSheet', () => {
     );
   });
 
-  it('should construct correct 24-column row in expected order', async () => {
+  it('should construct correct 25-column row in expected order', async () => {
     mockSheetsFlow();
     await callAppendRow();
 
@@ -131,6 +132,7 @@ describe('appendRowToSheet', () => {
       false,                           // isObserver
       '',                             // idCardNumber (null)
       '',                             // permanentAddress (null)
+      false,                           // isInternal
     ]);
   });
 
@@ -205,6 +207,6 @@ describe('appendRowToSheet', () => {
     await callAppendRow({ sheetName: 'Sheet With Spaces' });
 
     const url = vi.mocked(fetch).mock.calls[1][0] as string;
-    expect(url).toContain(encodeURIComponent('Sheet With Spaces!A:X'));
+    expect(url).toContain(encodeURIComponent('Sheet With Spaces!A:Y'));
   });
 });

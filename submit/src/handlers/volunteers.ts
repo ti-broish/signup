@@ -268,6 +268,7 @@ export async function handleVolunteerSubmission(
           isObserver: !!formData.isObserver,
           idCardNumber: formData.idCardNumber || null,
           permanentAddress: formData.permanentAddress || null,
+          isInternal: !!formData.isInternal,
         }).catch((error) => {
           logger.error('Export to Google Sheets failed', error);
         })
